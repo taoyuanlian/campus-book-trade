@@ -13,7 +13,8 @@
             <a class="navbar-brand" href="#">校园二手书平台</a>
         </div>
         <ul class="nav navbar-nav navbar-right">
-            <li><a href="#">欢迎，[测试用户]</a></li>
+            <li><a href="#" id="userName">欢迎，[未登录]</a></li>
+            <li><a href="login.html" id="logoutBtn">退出登录</a></li>
         </ul>
     </div>
 </nav>
@@ -28,19 +29,19 @@
                     <form id="bookForm">
                         <div class="form-group">
                             <label>书名</label>
-                            <input type="text" class="form-control" name="name" placeholder="如：Java编程思想">
+                            <input type="text" class="form-control" name="name" placeholder="如：Java编程思想" required>
                         </div>
                         <div class="form-group">
                             <label>作者</label>
-                            <input type="text" class="form-control" name="author" placeholder="作者名">
+                            <input type="text" class="form-control" name="author" placeholder="作者名" required>
                         </div>
                         <div class="form-group">
                             <label>价格</label>
-                            <input type="number" class="form-control" name="price" placeholder="0.00" value="20">
+                            <input type="number" step="0.01" class="form-control" name="price" placeholder="0.00" value="20" required>
                         </div>
                         <div class="form-group">
                             <label>成色</label>
-                            <select class="form-control" name="oldLevel">
+                            <select class="form-control" name="oldLevel" required>
                                 <option>九成新</option>
                                 <option>八成新</option>
                                 <option>七成新</option>
@@ -63,6 +64,7 @@
                             <th>书名</th>
                             <th>作者</th>
                             <th>价格</th>
+                            <th>成色</th>
                             <th>操作</th>
                         </tr>
                         </thead>
@@ -78,42 +80,110 @@
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
 <script>
-    // 1. 加载书籍列表
+    // 全局变量：存储当前登录用户的Token和信息
+    let token = localStorage.getItem("token");
+    let userId = localStorage.getItem("userId"); // 登录时需保存userId
+    let username = localStorage.getItem("username"); // 登录时需保存用户名
+
+    // 页面加载时先校验登录态
     $(function () {
+        // 1. 未登录则强制跳回登录页
+        if (!token) {
+            alert("请先登录！");
+            window.location.href = "login.html";
+            return;
+        }
+
+        // 2. 显示登录用户名
+        $("#userName").text("欢迎，" + (username || "普通用户"));
+
+        // 3. 加载书籍列表
         loadBooks();
 
-        // 2. 发布书籍
+        // 4. 发布书籍（核心修复：加Token、改请求格式）
         $('#bookForm').submit(function (e) {
             e.preventDefault();
-            $.post({
-                url: '/book/add', // 假设你后面会写这个接口
-                data: $(this).serialize(),
+            // 组装请求数据（JSON格式）
+            let bookData = {
+                name: $("input[name='name']").val(),
+                author: $("input[name='author']").val(),
+                price: $("input[name='price']").val(),
+                oldLevel: $("select[name='oldLevel']").val(),
+                userId: userId // 关联发布用户ID
+            };
+
+            $.ajax({
+                url: '/book/add',
+                type: 'POST',
+                contentType: 'application/json', // 关键：JSON格式传参
+                headers: {
+                    "token": token // 核心：添加JWT Token请求头，解决401
+                },
+                data: JSON.stringify(bookData), // 转为JSON字符串
                 success: function (res) {
                     if (res.code === 200) {
-                        alert("发布成功");
+                        alert("发布成功！");
                         loadBooks(); // 刷新列表
                         $('#bookForm')[0].reset(); // 清空表单
+                    } else {
+                        alert("发布失败：" + res.msg);
+                    }
+                },
+                error: function (err) {
+                    // 401则跳回登录页
+                    if (err.status === 401) {
+                        alert("登录已过期，请重新登录！");
+                        localStorage.removeItem("token"); // 清空无效Token
+                        window.location.href = "login.html";
+                    } else {
+                        alert("网络异常：" + err.statusText);
                     }
                 }
             });
         });
+
+        // 5. 退出登录
+        $("#logoutBtn").click(function () {
+            localStorage.clear(); // 清空登录信息
+            window.location.href = "login.html";
+        });
     });
 
+    // 加载书籍列表（修复forEach+HTML拼接）
     function loadBooks() {
-        $.get({
-            url: '/book/list', // 假设你后面会写这个接口
+        $.ajax({
+            url: '/book/list',
+            type: 'GET',
+            headers: {
+                "token": token // 列表接口也需Token（如果后端拦截）
+            },
             success: function (res) {
                 let html = "";
-                // 假设返回数据是数组 data
-                (res.data || []).forEach(item => {
-                    html += `<tr>
-                                <td>${item.name}</td>
-                                <td>${item.author}</td>
-                                <td>¥${item.price}</td>
-                                <td><button class="btn btn-xs btn-primary">购买</button></td>
-                             </tr>`;
-                });
+                // 修复：判断数组+正确拼接HTML
+                let bookList = res.data || [];
+                if (Array.isArray(bookList)) {
+                    if (bookList.length === 0) {
+                        html = '<tr><td colspan="5" class="text-center">暂无书籍数据</td></tr>';
+                    } else {
+                        bookList.forEach(function (item) {
+                            html += `<tr>
+                                        <td>${item.name || ""}</td>
+                                        <td>${item.author || ""}</td>
+                                        <td>¥${item.price || 0}</td>
+                                        <td>${item.oldLevel || ""}</td>
+                                        <td><button class="btn btn-xs btn-primary">购买</button></td>
+                                     </tr>`;
+                        });
+                    }
+                } else {
+                    console.error("商品列表返回格式错误：", bookList);
+                    html = '<tr><td colspan="5" class="text-center text-danger">数据加载失败</td></tr>';
+                }
                 $('#bookList').html(html);
+            },
+            error: function (err) {
+                alert("书籍列表加载失败：" + err.statusText);
+                $('#bookList').html('<tr><td colspan="5" class="text-center text-danger">加载失败，请刷新</td></tr>');
             }
         });
     }

@@ -41,13 +41,21 @@
             $.post({
                 url: '/user/login',
                 data: $(this).serialize(),
-                success: function (res) {
-                    if (res.code === 200) {
-                        alert("登录成功");
-                        window.location.href = "index.html"; // 跳转到主页
-                    } else {
-                        alert(res.msg);
-                    }
+                    success: function (res) {
+                        if (res.code === 200) {
+                            // 解析Token获取用户信息（可选，也可让后端返回userInfo）
+                            localStorage.setItem("token", res.data);
+                            localStorage.setItem("username", "test001"); // 实际应从后端返回的userInfo取
+                            localStorage.setItem("userId", 1); // 实际应从后端返回的userInfo取
+                            alert("登录成功");
+                            window.location.href = "index.html";
+                        } else {
+                            alert(res.msg);
+                        }
+                    },
+                // 新增：捕获后端返回的错误（比如Token生成失败）
+                error: function (err) {
+                    alert("登录接口异常：" + err.responseText);
                 }
             });
         });
