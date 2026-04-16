@@ -1,0 +1,227 @@
+我给你**最精简、能直接跑、适合期末交差**的版本，流程一步一步来，代码复制即用，细节让你自己填，完全符合老师要求：
+Spring Boot + MyBatis-Plus + JWT + RBAC简化 + MySQL + RESTful
+
+# 一、项目创建流程（照着点）
+1. 打开 IDEA → New Project
+2. 选 **Spring Initializr** → Next
+3. 组名随便填：com.example
+4. 项目名：campus-book-trade
+5. 选 **Java 8 / 11** 都行
+6. 勾选依赖：
+   - Spring Web
+   - MySQL Driver
+   - Lombok
+7. 创建完，等待加载
+
+---
+
+# 二、pom.xml 加必须依赖（复制到 <dependencies>）
+```xml
+<!-- MyBatis-Plus -->
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-boot-starter</artifactId>
+    <version>3.5.3.1</version>
+</dependency>
+
+<!-- JWT -->
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>
+    <version>0.11.5</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>
+    <version>0.11.5</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>
+    <version>0.11.5</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+---
+
+# 三、application.yml 配置（复制即用）
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/campus_book?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8
+    username: root
+    password: 你自己的密码
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+```
+
+---
+
+# 四、建库建表（直接在Navicat执行）
+```sql
+CREATE DATABASE campus_book;
+USE campus_book;
+
+-- 用户表
+CREATE TABLE user(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(20) UNIQUE NOT NULL,
+    password VARCHAR(100) NOT NULL,
+    nickname VARCHAR(20),
+    phone VARCHAR(11),
+    role VARCHAR(10) DEFAULT 'user', -- user/admin
+    create_time DATETIME
+);
+
+-- 书籍表
+CREATE TABLE book(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    author VARCHAR(30),
+    isbn VARCHAR(20),
+    price DECIMAL(10,2),
+    old_level VARCHAR(10), -- 九成新/七成新
+    category VARCHAR(20),
+    user_id INT,
+    status INT DEFAULT 1, -- 1上架 0下架
+    create_time DATETIME
+);
+
+-- 订单表
+CREATE TABLE order_info(
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_no VARCHAR(32) UNIQUE NOT NULL,
+    user_id INT,
+    book_id INT,
+    price DECIMAL(10,2),
+    status INT DEFAULT 0, -- 0待付款 1已付款 2已完成
+    create_time DATETIME
+);
+```
+
+---
+
+# 五、核心代码（你只需要建包、复制）
+建包结构：
+- com.example.controller
+- com.example.service
+- com.example.mapper
+- com.example.entity
+- com.example.common
+- com.example.config
+
+## 1. 统一返回结果 R.java（common包）
+```java
+@Data
+public class R<T> {
+    private int code;
+    private String msg;
+    private T data;
+
+    public static <T> R<T> ok(T data) {
+        R<T> r = new R<>();
+        r.code = 200;
+        r.msg = "成功";
+        r.data = data;
+        return r;
+    }
+    public static <T> R<T> fail(String msg) {
+        R<T> r = new R<>();
+        r.code = 500;
+        r.msg = msg;
+        return r;
+    }
+}
+```
+
+## 2. 用户实体 User.java（entity）
+```java
+@Data
+public class User {
+    private Long id;
+    private String username;
+    private String password;
+    private String nickname;
+    private String phone;
+    private String role;
+    private Date createTime;
+}
+```
+
+## 3. Mapper（mapper）
+```java
+@Mapper
+public interface UserMapper extends BaseMapper<User> {}
+```
+
+## 4. Service（service）
+```java
+public interface UserService extends IService<User> {
+    R<User> login(String username, String password);
+}
+
+@Service
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    @Override
+    public R<User> login(String username, String password) {
+        User user = lambdaQuery().eq(User::getUsername, username).one();
+        if (user == null) return R.fail("用户不存在");
+        if (!user.getPassword().equals(password)) return R.fail("密码错误");
+        return R.ok(user);
+    }
+}
+```
+
+## 5. Controller（controller）
+```java
+@RestController
+@RequestMapping("/user")
+public class UserController {
+    @Autowired
+    UserService userService;
+
+    @PostMapping("/login")
+    public R<User> login(String username, String password) {
+        return userService.login(username, password);
+    }
+
+    @PostMapping("/register")
+    public R<String> register(@RequestBody User user) {
+        user.setCreateTime(new Date());
+        user.setRole("user");
+        userService.save(user);
+        return R.ok("注册成功");
+    }
+}
+```
+
+---
+
+# 六、你自己要手动写的部分（期末报告必备）
+我给你留好**可自己填充**的细节，你照着写就能拿高分：
+1. **Book 实体、BookMapper、BookService、BookController**（模仿 User 写）
+2. **OrderInfo 实体与接口**（同上）
+3. **JWT 登录验证**（登录成功返回 token，接口加拦截）
+4. **RBAC 简化**：接口上加判断 `if(role.equals("admin"))`
+5. **接口测试截图**：Postman 跑一下
+6. **关键代码截图**：Controller + Service + 数据库表
+
+---
+
+# 七、我可以下一步帮你生成
+你只要说“继续”，我马上给你：
+- 完整 Book 代码
+- 完整 Order 代码
+- JWT 工具类 + 登录拦截
+- RBAC 权限判断代码
+- 可直接交的**课程设计完整版文档**
+
+要不要我继续把**剩下所有代码一次性给全**？
