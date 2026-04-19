@@ -21,6 +21,8 @@
             <li><a href="#" id="userName">欢迎，[未登录]</a></li>
             <!-- 新增：我的订单入口 -->
             <li><a href="myOrder.html" id="myOrderBtn">我的订单</a></li>
+            <!-- 管理员专属入口：普通用户隐藏 -->
+            <li id="adminMenu" style="display: none;"><a href="adminBookList.html">管理员商品管理</a></li>
             <li><a href="login.html" id="logoutBtn">退出登录</a></li>
         </ul>
     </div>
@@ -130,8 +132,9 @@
 <script>
     // 全局变量：存储当前登录用户的Token和信息
     let token = localStorage.getItem("token");
-    let userId = localStorage.getItem("userId"); // 登录时需保存userId
-    let username = localStorage.getItem("username"); // 登录时需保存用户名
+    let userId = localStorage.getItem("userId");
+    let username = localStorage.getItem("username");
+    let role = localStorage.getItem("role"); // 新增：用户角色
 
     // 页面加载时先校验登录态
     $(function () {
@@ -145,44 +148,46 @@
         // 2. 显示登录用户名
         $("#userName").text("欢迎，" + (username || "普通用户"));
 
-        // 3. 加载书籍列表
+        // 3. 判断角色，显示管理员菜单
+        if (role === "admin") {
+            $("#adminMenu").show();
+        }
+
+        // 4. 加载书籍列表
         loadBooks();
 
-        // 4. 发布书籍（核心修复：加Token、改请求格式）
+        // 5. 发布书籍
         $('#bookForm').submit(function (e) {
             e.preventDefault();
-            // 组装请求数据（JSON格式）
             let bookData = {
                 name: $("input[name='name']").val(),
                 author: $("input[name='author']").val(),
                 price: $("input[name='price']").val(),
                 oldLevel: $("select[name='oldLevel']").val(),
-                userId: userId // 关联发布用户ID
+                userId: userId
             };
 
             $.ajax({
                 url: '/book/add',
                 type: 'POST',
-                contentType: 'application/json', // 关键：JSON格式传参
+                contentType: 'application/json',
                 headers: {
-                    "token": token // 核心：添加JWT Token请求头，解决401
+                    "token": token
                 },
-                data: JSON.stringify(bookData), // 转为JSON字符串
+                data: JSON.stringify(bookData),
                 success: function (res) {
-                    // 适配你的R类返回格式（ok/fail，对应code=200/500）
                     if (res.code === 200) {
                         alert("发布成功！");
-                        loadBooks(); // 刷新列表
-                        $('#bookForm')[0].reset(); // 清空表单
+                        loadBooks();
+                        $('#bookForm')[0].reset();
                     } else {
                         alert("发布失败：" + res.msg);
                     }
                 },
                 error: function (err) {
-                    // 401则跳回登录页
                     if (err.status === 401) {
                         alert("登录已过期，请重新登录！");
-                        localStorage.removeItem("token"); // 清空无效Token
+                        localStorage.clear();
                         window.location.href = "login.html";
                     } else {
                         alert("网络异常：" + err.statusText);
@@ -191,25 +196,23 @@
             });
         });
 
-        // 5. 退出登录
+        // 6. 退出登录
         $("#logoutBtn").click(function () {
-            localStorage.clear(); // 清空登录信息
+            localStorage.clear();
             window.location.href = "login.html";
         });
 
-        // 6. 保存编辑的事件（新增）
+        // 7. 保存编辑
         $('#saveEditBtn').click(function () {
-            // 获取编辑后的数据
             let bookData = {
                 id: $('#editBookId').val(),
                 name: $('#editName').val(),
                 author: $('#editAuthor').val(),
                 price: $('#editPrice').val(),
                 oldLevel: $('#editOldLevel').val(),
-                userId: userId // 关联用户ID（防止篡改）
+                userId: userId
             };
 
-            // 发送修改请求
             $.ajax({
                 url: '/book/update',
                 type: 'PUT',
@@ -221,8 +224,8 @@
                 success: function (res) {
                     if (res.code === 200) {
                         alert("修改成功！");
-                        $('#editBookModal').modal('hide'); // 关闭弹窗
-                        loadBooks(); // 刷新列表
+                        $('#editBookModal').modal('hide');
+                        loadBooks();
                     } else {
                         alert("修改失败：" + res.msg);
                     }
@@ -230,7 +233,7 @@
                 error: function (err) {
                     if (err.status === 401) {
                         alert("登录已过期，请重新登录！");
-                        localStorage.removeItem("token");
+                        localStorage.clear();
                         window.location.href = "login.html";
                     } else {
                         alert("修改失败：" + err.statusText);
@@ -240,17 +243,16 @@
         });
     });
 
-    // 加载书籍列表（修复forEach+HTML拼接 + 新增编辑/删除/购买按钮）
+    // 加载书籍列表
     function loadBooks() {
         $.ajax({
             url: '/book/list',
             type: 'GET',
             headers: {
-                "token": token // 列表接口也需Token（如果后端拦截）
+                "token": token
             },
             success: function (res) {
                 let html = "";
-                // 修复：判断数组+正确拼接HTML
                 let bookList = res.data || [];
                 if (Array.isArray(bookList)) {
                     if (bookList.length === 0) {
@@ -263,16 +265,13 @@
                                         <td>¥${item.price || 0}</td>
                                         <td>${item.oldLevel || ""}</td>
                                         <td>
-                                            <!-- 购买按钮：绑定buy-btn类 + 存储商品ID -->
                                             <button class="btn btn-xs btn-primary buy-btn" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}">购买</button>
-                                            <!-- 编辑按钮 -->
                                             <button class="btn btn-xs btn-warning edit-btn"
                                                     data-id="${item.id}"
                                                     data-name="${item.name}"
                                                     data-author="${item.author}"
                                                     data-price="${item.price}"
                                                     data-oldlevel="${item.oldLevel}">编辑</button>
-                                            <!-- 删除按钮 -->
                                             <button class="btn btn-xs btn-danger delete-btn" data-id="${item.id}">删除</button>
                                         </td>
                                      </tr>`;
@@ -283,11 +282,9 @@
                     html = '<tr><td colspan="5" class="text-center text-danger">数据加载失败</td></tr>';
                 }
                 $('#bookList').html(html);
-
-                // 绑定删除/编辑/购买按钮事件
                 bindDeleteEvent();
                 bindEditEvent();
-                bindBuyEvent(); // 新增：绑定购买事件
+                bindBuyEvent();
             },
             error: function (err) {
                 alert("书籍列表加载失败：" + err.statusText);
@@ -296,30 +293,22 @@
         });
     }
 
-    // 新增：绑定购买按钮事件（适配你的OrderInfo实体类）
+    // 购买功能
     function bindBuyEvent() {
         $('.buy-btn').click(function () {
-            // 获取商品信息
             let bookId = $(this).attr('data-id');
             let bookName = $(this).attr('data-name');
             let bookPrice = $(this).attr('data-price');
 
-            // 确认下单
             let confirmBuy = confirm(`确定购买《${bookName}》吗？价格：¥${bookPrice}`);
-            if (!confirmBuy) {
-                return;
-            }
+            if (!confirmBuy) return;
 
-            // 组装订单数据（完全匹配你的OrderInfo实体类）
-            // 注：orderNo和createTime由后端生成，status后端默认设为1（待支付）
             let orderData = {
-                userId: userId,    // 购买者ID（必须传）
-                bookId: bookId,    // 书籍ID（必须传）
-                price: bookPrice   // 订单金额（必须传）
-                // 以下字段后端自动生成，无需前端传：orderNo、status、createTime
+                userId: userId,
+                bookId: bookId,
+                price: bookPrice
             };
 
-            // 发送下单请求
             $.ajax({
                 url: '/order/create',
                 type: 'POST',
@@ -329,7 +318,6 @@
                 },
                 data: JSON.stringify(orderData),
                 success: function (res) {
-                    // 适配你的R类返回格式（ok: code=200，fail: code=500）
                     if (res.code === 200) {
                         alert(res.msg || "下单成功！可前往「我的订单」查看");
                     } else {
@@ -339,7 +327,7 @@
                 error: function (err) {
                     if (err.status === 401) {
                         alert("登录已过期，请重新登录！");
-                        localStorage.removeItem("token");
+                        localStorage.clear();
                         window.location.href = "login.html";
                     } else {
                         alert("下单失败：" + err.statusText);
@@ -349,42 +337,34 @@
         });
     }
 
-    // 绑定编辑按钮事件
+    // 编辑功能
     function bindEditEvent() {
         $('.edit-btn').click(function () {
-            // 获取商品信息（从按钮属性中取）
             let bookId = $(this).attr('data-id');
             let name = $(this).attr('data-name');
             let author = $(this).attr('data-author');
             let price = $(this).attr('data-price');
             let oldLevel = $(this).attr('data-oldlevel');
 
-            // 填充到编辑表单
             $('#editBookId').val(bookId);
             $('#editName').val(name);
             $('#editAuthor').val(author);
             $('#editPrice').val(price);
             $('#editOldLevel').val(oldLevel);
-
-            // 打开弹窗
             $('#editBookModal').modal('show');
         });
     }
 
-    // 删除商品的事件绑定与请求
+    // 删除功能
     function bindDeleteEvent() {
         $('.delete-btn').click(function () {
-            // 确认删除
-            if (!confirm("确定要删除该商品吗？删除后无法恢复！")) {
-                return;
-            }
-            // 获取商品ID
+            if (!confirm("确定要删除该商品吗？删除后无法恢复！")) return;
             let bookId = $(this).attr('data-id');
             if (!bookId) {
                 alert("商品ID为空，删除失败！");
                 return;
             }
-            // 发送删除请求
+
             $.ajax({
                 url: '/book/delete/' + bookId,
                 type: 'DELETE',
@@ -394,7 +374,7 @@
                 success: function (res) {
                     if (res.code === 200) {
                         alert("删除成功！");
-                        loadBooks(); // 刷新列表
+                        loadBooks();
                     } else {
                         alert("删除失败：" + res.msg);
                     }
@@ -402,7 +382,7 @@
                 error: function (err) {
                     if (err.status === 401) {
                         alert("登录已过期，请重新登录！");
-                        localStorage.removeItem("token");
+                        localStorage.clear();
                         window.location.href = "login.html";
                     } else {
                         alert("删除失败：" + err.statusText);

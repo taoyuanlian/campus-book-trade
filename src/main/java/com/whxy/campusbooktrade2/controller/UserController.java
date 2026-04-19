@@ -1,13 +1,16 @@
 package com.whxy.campusbooktrade2.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.entity.User;
 import com.whxy.campusbooktrade2.service.UserService;
-import com.whxy.campusbooktrade2.util.JwtUtil; // 必须导入
-import org.springframework.beans.factory.annotation.Autowired; // 必须导入
-import org.springframework.web.bind.annotation.*;
+import com.whxy.campusbooktrade2.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,41 +21,27 @@ public class UserController {
     private UserService userService;
     @Autowired
     private JwtUtil jwtUtil;
-    // 登录接口
+
+    /**
+     * 登录接口（补充role到Token）
+     */
     @PostMapping("/login")
-    public R<String> login(String username, String password) {
-        // 修复原因1：先接收R<User>类型的返回值（和UserService的login方法匹配）
-        R<User> loginResponse = userService.login(username, password);
-
-        // 第一步：判断登录是否失败（比如用户不存在/密码错误）
-        if (loginResponse.getCode() != 200) {
-            return R.fail(loginResponse.getMsg()); // 直接返回失败信息
+    public R<Map<String, Object>> login(@RequestBody User user) {
+        // 1. 校验用户名密码（你的原有逻辑）
+        User loginUser = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getUsername, user.getUsername()));
+        if (loginUser == null || !loginUser.getPassword().equals(user.getPassword())) {
+            return R.fail("用户名或密码错误");
         }
 
-        // 第二步：从R对象中取出真正的User数据（这才是你要的用户信息）
-        User user = loginResponse.getData();
+        // 2. 生成含userId和role的Token
+        String token = jwtUtil.generateToken(loginUser.getId(), loginUser.getRole());
 
-        // 第三步：生成JWT Token（现在jwtUtil有值，不会空指针）
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("role", user.getRole());
-        String token = jwtUtil.generateToken(claims);
-
-        // 第四步：返回Token（符合接口返回规范）
-        return R.ok(token);
-    }
-    // 注册接口
-    @PostMapping("/register")
-    public R<String> register(@RequestBody User user) {
-        // 设置默认值
-        user.setCreateTime(new Date());
-        user.setRole("user");
-        // 保存到数据库
-        boolean save = userService.save(user);
-        if (save) {
-            return R.ok("注册成功");
-        } else {
-            return R.fail("注册失败");
-        }
+        // 3. 返回Token+用户信息
+        Map<String, Object> result = new HashMap<>();
+        result.put("token", token);
+        result.put("userId", loginUser.getId());
+        result.put("username", loginUser.getUsername());
+        result.put("role", loginUser.getRole()); // 返回角色给前端
+        return R.ok(result);
     }
 }
