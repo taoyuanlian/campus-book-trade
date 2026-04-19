@@ -1,0 +1,128 @@
+<!--// 我的订单页面 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>校园二手书 - 我的订单</title>
+    <!-- 引入依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-default">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="#">校园二手书平台</a>
+        </div>
+        <ul class="nav navbar-nav navbar-right">
+            <li><a href="#" id="userName">欢迎，[未登录]</a></li>
+            <li><a href="index.html">返回首页</a></li>
+            <li><a href="login.html" id="logoutBtn">退出登录</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container" style="margin-top: 20px;">
+    <div class="panel panel-default">
+        <div class="panel-heading">我的订单</div>
+        <div class="panel-body">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>订单编号</th>
+                    <th>书籍ID</th>
+                    <th>订单金额</th>
+                    <th>下单时间</th>
+                    <th>订单状态</th>
+                </tr>
+                </thead>
+                <tbody id="orderList">
+                <!-- 订单数据由JS加载 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 全局变量
+    let token = localStorage.getItem("token");
+    let userId = localStorage.getItem("userId");
+    let username = localStorage.getItem("username");
+
+    // 页面加载校验
+    $(function () {
+        if (!token || !userId) {
+            alert("请先登录！");
+            window.location.href = "login.html";
+            return;
+        }
+
+        // 显示用户名
+        $("#userName").text("欢迎，" + (username || "普通用户"));
+
+        // 加载我的订单
+        loadMyOrders();
+
+        // 退出登录
+        $("#logoutBtn").click(function () {
+            localStorage.clear();
+            window.location.href = "login.html";
+        });
+    });
+
+    // 加载个人订单（适配你的OrderInfo实体类）
+    function loadMyOrders() {
+        $.ajax({
+            url: '/order/my/' + userId, // 后端获取个人订单接口
+            type: 'GET',
+            headers: {
+                "token": token
+            },
+            success: function (res) {
+                let html = "";
+                let orderList = res.data || [];
+                if (Array.isArray(orderList)) {
+                    if (orderList.length === 0) {
+                        html = '<tr><td colspan="5" class="text-center">暂无订单数据</td></tr>';
+                    } else {
+                        orderList.forEach(function (item) {
+                            // 适配你的订单状态：1-待支付 2-已支付 3-已取消
+                            let statusText = "";
+                            if (item.status === 1) statusText = "<span class='label label-warning'>待支付</span>";
+                            if (item.status === 2) statusText = "<span class='label label-success'>已支付</span>";
+                            if (item.status === 3) statusText = "<span class='label label-danger'>已取消</span>";
+
+                            // 格式化时间（后端返回的Date类型转成可读格式）
+                            let createTime = item.createTime ? new Date(item.createTime).toLocaleString() : "";
+
+                            html += `<tr>
+                                        <td>${item.orderNo || ""}</td> <!-- 后端生成的订单编号 -->
+                                        <td>${item.bookId || ""}</td> <!-- 书籍ID -->
+                                        <td>¥${item.price || 0}</td> <!-- 订单金额 -->
+                                        <td>${createTime}</td> <!-- 下单时间 -->
+                                        <td>${statusText}</td> <!-- 订单状态 -->
+                                     </tr>`;
+                        });
+                    }
+                } else {
+                    html = '<tr><td colspan="5" class="text-center text-danger">订单数据加载失败</td></tr>';
+                }
+                $('#orderList').html(html);
+            },
+            error: function (err) {
+                if (err.status === 401) {
+                    alert("登录已过期，请重新登录！");
+                    localStorage.removeItem("token");
+                    window.location.href = "login.html";
+                } else {
+                    alert("订单加载失败：" + err.statusText);
+                    $('#orderList').html('<tr><td colspan="5" class="text-center text-danger">加载失败，请刷新</td></tr>');
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>

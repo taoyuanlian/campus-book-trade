@@ -19,6 +19,8 @@
         </div>
         <ul class="nav navbar-nav navbar-right">
             <li><a href="#" id="userName">欢迎，[未登录]</a></li>
+            <!-- 新增：我的订单入口 -->
+            <li><a href="myOrder.html" id="myOrderBtn">我的订单</a></li>
             <li><a href="login.html" id="logoutBtn">退出登录</a></li>
         </ul>
     </div>
@@ -125,7 +127,6 @@
     </div>
 </div>
 
-<!-- 关键：删掉这里重复的jQuery引入！！！ -->
 <script>
     // 全局变量：存储当前登录用户的Token和信息
     let token = localStorage.getItem("token");
@@ -168,6 +169,7 @@
                 },
                 data: JSON.stringify(bookData), // 转为JSON字符串
                 success: function (res) {
+                    // 适配你的R类返回格式（ok/fail，对应code=200/500）
                     if (res.code === 200) {
                         alert("发布成功！");
                         loadBooks(); // 刷新列表
@@ -238,7 +240,7 @@
         });
     });
 
-    // 加载书籍列表（修复forEach+HTML拼接 + 新增编辑/删除按钮）
+    // 加载书籍列表（修复forEach+HTML拼接 + 新增编辑/删除/购买按钮）
     function loadBooks() {
         $.ajax({
             url: '/book/list',
@@ -261,8 +263,9 @@
                                         <td>¥${item.price || 0}</td>
                                         <td>${item.oldLevel || ""}</td>
                                         <td>
-                                            <button class="btn btn-xs btn-primary">购买</button>
-                                            <!-- 新增编辑按钮 -->
+                                            <!-- 购买按钮：绑定buy-btn类 + 存储商品ID -->
+                                            <button class="btn btn-xs btn-primary buy-btn" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}">购买</button>
+                                            <!-- 编辑按钮 -->
                                             <button class="btn btn-xs btn-warning edit-btn"
                                                     data-id="${item.id}"
                                                     data-name="${item.name}"
@@ -281,9 +284,10 @@
                 }
                 $('#bookList').html(html);
 
-                // 绑定删除/编辑按钮事件（新增编辑事件绑定）
+                // 绑定删除/编辑/购买按钮事件
                 bindDeleteEvent();
                 bindEditEvent();
+                bindBuyEvent(); // 新增：绑定购买事件
             },
             error: function (err) {
                 alert("书籍列表加载失败：" + err.statusText);
@@ -292,7 +296,60 @@
         });
     }
 
-    // 新增：绑定编辑按钮事件
+    // 新增：绑定购买按钮事件（适配你的OrderInfo实体类）
+    function bindBuyEvent() {
+        $('.buy-btn').click(function () {
+            // 获取商品信息
+            let bookId = $(this).attr('data-id');
+            let bookName = $(this).attr('data-name');
+            let bookPrice = $(this).attr('data-price');
+
+            // 确认下单
+            let confirmBuy = confirm(`确定购买《${bookName}》吗？价格：¥${bookPrice}`);
+            if (!confirmBuy) {
+                return;
+            }
+
+            // 组装订单数据（完全匹配你的OrderInfo实体类）
+            // 注：orderNo和createTime由后端生成，status后端默认设为1（待支付）
+            let orderData = {
+                userId: userId,    // 购买者ID（必须传）
+                bookId: bookId,    // 书籍ID（必须传）
+                price: bookPrice   // 订单金额（必须传）
+                // 以下字段后端自动生成，无需前端传：orderNo、status、createTime
+            };
+
+            // 发送下单请求
+            $.ajax({
+                url: '/order/create',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    "token": token
+                },
+                data: JSON.stringify(orderData),
+                success: function (res) {
+                    // 适配你的R类返回格式（ok: code=200，fail: code=500）
+                    if (res.code === 200) {
+                        alert(res.msg || "下单成功！可前往「我的订单」查看");
+                    } else {
+                        alert("下单失败：" + res.msg);
+                    }
+                },
+                error: function (err) {
+                    if (err.status === 401) {
+                        alert("登录已过期，请重新登录！");
+                        localStorage.removeItem("token");
+                        window.location.href = "login.html";
+                    } else {
+                        alert("下单失败：" + err.statusText);
+                    }
+                }
+            });
+        });
+    }
+
+    // 绑定编辑按钮事件
     function bindEditEvent() {
         $('.edit-btn').click(function () {
             // 获取商品信息（从按钮属性中取）
@@ -309,7 +366,7 @@
             $('#editPrice').val(price);
             $('#editOldLevel').val(oldLevel);
 
-            // 打开弹窗（现在能正常执行）
+            // 打开弹窗
             $('#editBookModal').modal('show');
         });
     }
