@@ -1,4 +1,4 @@
-package com.whxy.campusbooktrade2.config;
+package com.whxy.campusbooktrade2.config; // 注意：你把Interceptor放在了config包下，需和WebConfig的注入对应
 
 import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.util.JwtUtil;
@@ -20,11 +20,16 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // ========== 新增：放行跨域OPTIONS预检请求（关键！避免前端请求被拦截） ==========
+        if ("OPTIONS".equals(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return true;
+        }
+
         String token = request.getHeader("token");
         if (token == null || token.isEmpty()) {
             response.setContentType("application/json;charset=utf-8");
             PrintWriter writer = response.getWriter();
-            // 替换为ObjectMapper序列化
             writer.write(objectMapper.writeValueAsString(R.fail("未登录，请先登录")));
             writer.close();
             response.setStatus(401);
@@ -35,7 +40,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             Long userId = jwtUtil.getUserIdFromToken(token);
             String role = jwtUtil.getRoleFromToken(token);
             request.setAttribute("userId", userId);
-            request.setAttribute("role", role);
+            request.setAttribute("role", role); // 核心：给AdminController传role
             return true;
         } catch (Exception e) {
             response.setContentType("application/json;charset=utf-8");

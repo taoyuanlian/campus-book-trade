@@ -29,6 +29,8 @@ public class AdminController {
         return "admin".equals(role);
     }
 
+    // ========== 用户管理接口 ==========
+    // 1. 查看所有用户列表
     @GetMapping("/user/list")
     public R<List<User>> userList() {
         if (!isAdmin()) {
@@ -37,6 +39,32 @@ public class AdminController {
         return R.ok(userService.list());
     }
 
+    // 2. 删除指定用户（新增！核心接口）
+    @DeleteMapping("/user/{id}")
+    public R<String> deleteUser(@PathVariable Long id) {
+        if (!isAdmin()) {
+            return R.fail("权限不足！仅管理员可删除用户");
+        }
+        try {
+            // 安全防护：禁止删除admin自身
+            User targetUser = userService.getById(id);
+            if (targetUser != null && "admin".equals(targetUser.getUsername())) {
+                return R.fail("禁止删除管理员账号！");
+            }
+            // 执行删除（复用MyBatis-Plus的removeById）
+            boolean deleteSuccess = userService.removeById(id);
+            if (deleteSuccess) {
+                return R.ok("用户删除成功！");
+            } else {
+                return R.fail("删除失败：用户ID不存在");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.fail("删除失败：" + e.getMessage());
+        }
+    }
+
+    // ========== 商品管理接口 ==========
     @GetMapping("/book/list")
     public R<List<Map<String, Object>>> bookList() {
         if (!isAdmin()) {
@@ -53,12 +81,12 @@ public class AdminController {
             map.put("author", book.getAuthor());
             map.put("userId", book.getUserId());
 
-            // 🔥 1. 返回发布者用户名（解决显示ID问题）
+            // 返回发布者用户名
             User user = userService.getById(book.getUserId());
             String publisherName = user == null ? "未知用户" : user.getUsername();
             map.put("publisherName", publisherName);
 
-            // 🔥 2. 返回书籍状态（解决同步问题：0=已售出，1=在售）
+            // 返回书籍状态
             map.put("status", book.getStatus());
             map.put("statusText", book.getStatus() == 1 ? "在售" : "已售出");
 
