@@ -1,3 +1,140 @@
+# 🚀 适配你的 Service 层的完整改造方案
+结合你提供的 `BookService`、`BookServiceImpl`、`BookMapper` 和通用返回类 `R`，我会帮你完成**控制器、前端代码的全量适配改造**，确保「分类筛选、关键词搜索、分页展示」功能完整可用，且权限控制逻辑（普通用户/管理员）完全生效。
+
+## 一、第一步：改造 BookController.java（核心适配）
+适配你的 `BookService` 中 `pageList` 方法，补充分类/搜索/分页接口，同时兼容权限控制：
+```java
+package com.whxy.campusbooktrade2.controller;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.whxy.campusbooktrade2.common.R;
+import com.whxy.campusbooktrade2.entity.Book;
+import com.whxy.campusbooktrade2.entity.User;
+import com.whxy.campusbooktrade2.service.BookService;
+import com.whxy.campusbooktrade2.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/book")
+public class BookController {
+    @Autowired
+    private BookService bookService;
+
+    @Autowired
+    private UserService userService;
+
+    /**
+     * 发布书籍（适配Service层的addBook方法，自动关联当前用户）
+     */
+    @PostMapping("/add")
+    public R<String> add(@RequestBody Book book) {
+        // Service层已自动设置userId、createTime、status，此处无需重复设置
+        return bookService.addBook(book);
+    }
+
+    /**
+     * 分页查询书籍（支持分类、关键词搜索）
+     * @param page 页码（默认1）
+     * @param size 每页条数（默认10）
+     * @param category 分类（可选）
+     * @param name 书名关键词（可选）
+     */
+    @GetMapping("/list")
+    public R<IPage<Map<String, Object>>> list(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String name
+    ) {
+        // 调用Service的分页查询方法
+        IPage<Book> bookPage = bookService.pageList(page, size, category, name);
+
+        // 组装返回数据（补充发布者名称）
+        IPage<Map<String, Object>> resultPage = new IPage<Map<String, Object>>() {
+            @Override
+            public List<Map<String, Object>> getRecords() {
+                List<Map<String, Object>> list = new ArrayList<>();
+                for (Book book : bookPage.getRecords()) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", book.getId());
+                    map.put("name", book.getName());
+                    map.put("author", book.getAuthor());
+                    map.put("price", book.getPrice());
+                    map.put("oldLevel", book.getOldLevel());
+                    map.put("category", book.getCategory());
+                    map.put("userId", book.getUserId());
+                    map.put("createTime", book.getCreateTime());
+
+                    // 查询发布者名称
+                    User user = userService.getById(book.getUserId());
+                    map.put("publisherName", user == null ? "未知用户" : user.getUsername());
+                    list.add(map);
+                }
+                return list;
+            }
+
+            @Override
+            public long getTotal() {
+                return bookPage.getTotal();
+            }
+
+            @Override
+            public long getSize() {
+                return bookPage.getSize();
+            }
+
+            @Override
+            public long getCurrent() {
+                return bookPage.getCurrent();
+            }
+
+            @Override
+            public long getPages() {
+                return bookPage.getPages();
+            }
+        };
+        return R.ok(resultPage);
+    }
+
+    /**
+     * 获取所有书籍分类（供前端下拉框使用）
+     */
+    @GetMapping("/categories")
+    public R<List<String>> getCategories() {
+        // 方式1：固定分类（快速落地）
+        List<String> categories = List.of("编程", "文学", "教材", "小说", "社科", "其他");
+        // 方式2：从数据库查询所有已存在的分类（更灵活）
+        // List<String> categories = bookService.listObjs(query().select("category").groupBy("category")).stream().map(Object::toString).toList();
+        return R.ok(categories);
+    }
+
+    /**
+     * 修改书籍（Service层已做权限控制）
+     */
+    @PutMapping("/update")
+    public R<String> update(@RequestBody Book book) {
+        return bookService.updateBook(book);
+    }
+
+    /**
+     * 删除书籍（Service层已做权限控制）
+     */
+    @DeleteMapping("/delete/{id}")
+    public R<String> delete(@PathVariable Long id) {
+        return bookService.deleteBook(id);
+    }
+}
+```
+
+## 二、第二步：改造前端首页 HTML（完整功能）
+替换你原有 HTML，新增「分类筛选、关键词搜索、分页控件」，并适配后端新接口：
+```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -8,30 +145,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
     <style>
         .form-inline .form-group { margin-right: 10px; }
-        /* 分页整体居中+上下间距 */
-        .pagination {
-            margin: 20px 0 !important;
-        }
-        /* 分页按钮美化 */
-        .pagination > li > a {
-            color: #337ab7;
-            border-radius: 6px;
-            margin: 0 3px;
-        }
-        /* 当前页码高亮 */
-        .pagination > li.active > a {
-            background-color: #337ab7;
-            border-color: #337ab7;
-            border-radius: 6px;
-        }
-        /* 底部页码信息 */
-        .page-info {
-            margin-top: 5px;
-            color: #666;
-            font-size: 14px;
-        }
-        .search-panel { margin-bottom: 20px; }
-        .table { margin-bottom: 25px; }
+        .pagination { margin: 0; }
+        .page-info { margin-top: 10px; color: #666; }
     </style>
 </head>
 <body>
@@ -51,7 +166,8 @@
 </nav>
 
 <div class="container" style="margin-top: 20px;">
-    <div class="row search-panel">
+    <!-- 新增：搜索+分类筛选栏 -->
+    <div class="row mb-3">
         <div class="col-md-12">
             <div class="panel panel-default">
                 <div class="panel-body">
@@ -60,6 +176,7 @@
                             <label>商品分类：</label>
                             <select id="categorySelect" class="form-control">
                                 <option value="">全部分类</option>
+                                <!-- 动态加载分类 -->
                             </select>
                         </div>
                         <div class="form-group">
@@ -100,10 +217,16 @@
                                 <option>七成新</option>
                             </select>
                         </div>
+                        <!-- 新增：分类选择 -->
                         <div class="form-group">
                             <label>分类</label>
-                            <select class="form-control" name="category" id="publishCategory" required>
-                                <option value="">请选择分类</option>
+                            <select class="form-control" name="category" required>
+                                <option>编程</option>
+                                <option>文学</option>
+                                <option>教材</option>
+                                <option>小说</option>
+                                <option>社科</option>
+                                <option>其他</option>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-success btn-block">发布</button>
@@ -121,7 +244,7 @@
                         <tr>
                             <th>书名</th>
                             <th>作者</th>
-                            <th>分类</th>
+                            <th>分类</th> <!-- 新增：分类列 -->
                             <th>价格</th>
                             <th>成色</th>
                             <th>发布者</th>
@@ -132,6 +255,7 @@
                         </tbody>
                     </table>
 
+                    <!-- 新增：分页控件 -->
                     <div class="text-center">
                         <nav>
                             <ul class="pagination" id="pagination">
@@ -180,10 +304,16 @@
                             <option>七成新</option>
                         </select>
                     </div>
+                    <!-- 新增：编辑分类 -->
                     <div class="form-group">
                         <label>分类</label>
                         <select class="form-control" id="editCategory" required>
-                            <option value="">请选择分类</option>
+                            <option>编程</option>
+                            <option>文学</option>
+                            <option>教材</option>
+                            <option>小说</option>
+                            <option>社科</option>
+                            <option>其他</option>
                         </select>
                     </div>
                 </form>
@@ -204,14 +334,13 @@
         role: localStorage.getItem("role")
     };
 
+    // 新增：分页/搜索/分类参数
     let pageParams = {
-        page: 1,
-        size: 10,
-        category: "",
-        name: ""
+        page: 1,          // 页码
+        size: 10,         // 每页条数
+        category: "",     // 分类
+        name: ""          // 书名关键词
     };
-
-    let categoryList = [];
 
     const utils = {
         parseToken: function() {
@@ -266,16 +395,20 @@
             $("#adminUserMenu").show();
         }
 
+        // 加载分类列表
         loadCategories();
+        // 加载书籍列表（带分页/搜索/分类）
         loadBooks();
 
+        // 搜索按钮事件
         $("#searchBtn").click(function() {
             pageParams.name = $("#keywordInput").val().trim();
             pageParams.category = $("#categorySelect").val() || "";
-            pageParams.page = 1;
+            pageParams.page = 1; // 搜索后重置到第1页
             loadBooks();
         });
 
+        // 重置按钮事件
         $("#resetBtn").click(function() {
             $("#keywordInput").val("");
             $("#categorySelect").val("");
@@ -283,6 +416,7 @@
             loadBooks();
         });
 
+        // 分页-上一页
         $("#prevPage").click(function() {
             if (pageParams.page > 1) {
                 pageParams.page--;
@@ -292,6 +426,7 @@
             }
         });
 
+        // 分页-下一页
         $("#nextPage").click(function() {
             const totalPage = parseInt($("#totalPage").text());
             if (pageParams.page < totalPage) {
@@ -302,6 +437,7 @@
             }
         });
 
+        // 发布书籍表单提交
         $('#bookForm').submit(function (e) {
             e.preventDefault();
             const bookData = {
@@ -309,7 +445,8 @@
                 author: $("input[name='author']").val(),
                 price: $("input[name='price']").val(),
                 oldLevel: $("select[name='oldLevel']").val(),
-                category: $("#publishCategory").val()
+                category: $("select[name='category']").val() // 新增分类字段
+                // userId由Service层自动设置，无需传递
             };
 
             $.ajax({
@@ -331,8 +468,10 @@
             });
         });
 
+        // 退出登录
         $("#logoutBtn").click(utils.clearLogin);
 
+        // 保存编辑
         $('#saveEditBtn').click(function () {
             const bookData = {
                 id: $('#editBookId').val(),
@@ -340,7 +479,8 @@
                 author: $('#editAuthor').val(),
                 price: $('#editPrice').val(),
                 oldLevel: $('#editOldLevel').val(),
-                category: $('#editCategory').val()
+                category: $('#editCategory').val() // 新增分类字段
+                // userId无需传递，Service层会做权限校验
             };
 
             $.ajax({
@@ -363,6 +503,9 @@
         });
     });
 
+    /**
+     * 加载分类列表
+     */
     function loadCategories() {
         $.ajax({
             url: '/book/categories',
@@ -370,32 +513,26 @@
             headers: utils.getAjaxHeader(),
             success: function(res) {
                 if (res.code === 200) {
-                    categoryList = res.data;
-                    let filterHtml = '<option value="">全部分类</option>';
-                    let publishHtml = '<option value="">请选择分类</option>';
-                    let editHtml = '<option value="">请选择分类</option>';
-
-                    categoryList.forEach(cate => {
-                        filterHtml += `<option value="${cate}">${cate}</option>`;
-                        publishHtml += `<option value="${cate}">${cate}</option>`;
-                        editHtml += `<option value="${cate}">${cate}</option>`;
+                    let html = '<option value="">全部分类</option>';
+                    res.data.forEach(cate => {
+                        html += `<option value="${cate}">${cate}</option>`;
                     });
-
-                    $("#categorySelect").html(filterHtml);
-                    $("#publishCategory").html(publishHtml);
-                    $("#editCategory").html(editHtml);
+                    $("#categorySelect").html(html);
                 }
             },
             error: utils.handleAjaxError
         });
     }
 
+    /**
+     * 加载书籍列表（支持分页/搜索/分类）
+     */
     function loadBooks() {
         $.ajax({
             url: '/book/list',
             type: 'GET',
             headers: utils.getAjaxHeader(),
-            data: pageParams,
+            data: pageParams, // 传递分页/搜索参数
             success: function (res) {
                 let html = "";
                 const bookPage = res.data || {};
@@ -435,8 +572,11 @@
                     html = '<tr><td colspan="7" class="text-center text-danger">数据加载失败</td></tr>';
                 }
 
+                // 渲染书籍列表
                 $('#bookList').html(html);
+                // 渲染分页信息
                 renderPagination(bookPage);
+                // 绑定事件
                 bindDeleteEvent();
                 bindEditEvent();
                 bindBuyEvent();
@@ -448,35 +588,27 @@
         });
     }
 
+    /**
+     * 渲染分页控件
+     */
     function renderPagination(bookPage) {
         const totalCount = bookPage.total || 0;
         const totalPage = bookPage.pages || 0;
         const currentPage = bookPage.current || 1;
 
+        // 更新分页统计
         $("#totalCount").text(totalCount);
         $("#totalPage").text(totalPage);
         $("#currentPage").text(currentPage);
 
-        let pageHtml = "";
-        const startPage = Math.max(1, currentPage - 3);
-        const endPage = Math.min(totalPage, currentPage + 3);
-
-        for (let i = startPage; i <= endPage; i++) {
-            if (i === currentPage) {
-                pageHtml += `<li class="active"><a href="javascript:;">${i}</a></li>`;
-            } else {
-                pageHtml += `<li><a href="javascript:;" onclick="jumpToPage(${i})">${i}</a></li>`;
-            }
-        }
-
+        // 生成页码（简化版，可扩展为多页码展示）
+        let pageHtml = `<li class="active"><a href="javascript:;">${currentPage}</a></li>`;
         $("#pageNumbers").html(pageHtml);
     }
 
-    function jumpToPage(pageNum) {
-        pageParams.page = pageNum;
-        loadBooks();
-    }
-
+    /**
+     * 绑定购买事件
+     */
     function bindBuyEvent() {
         $('.buy-btn').click(function () {
             const bookId = $(this).attr('data-id');
@@ -509,6 +641,9 @@
         });
     }
 
+    /**
+     * 绑定编辑事件（新增分类赋值）
+     */
     function bindEditEvent() {
         $('.edit-btn').click(function () {
             const bookId = $(this).attr('data-id');
@@ -517,11 +652,14 @@
             $('#editAuthor').val($(this).attr('data-author'));
             $('#editPrice').val($(this).attr('data-price'));
             $('#editOldLevel').val($(this).attr('data-oldlevel'));
-            $('#editCategory').val($(this).attr('data-category'));
+            $('#editCategory').val($(this).attr('data-category')); // 分类赋值
             $('#editBookModal').modal('show');
         });
     }
 
+    /**
+     * 绑定删除事件
+     */
     function bindDeleteEvent() {
         $('.delete-btn').click(function () {
             if (!confirm("确定要删除该商品吗？删除后无法恢复！")) return;
@@ -550,3 +688,44 @@
 </script>
 </body>
 </html>
+```
+
+## 三、第三步：补充必要的配置类（分页插件）
+确保 MyBatis-Plus 分页功能生效，新增配置类：
+```java
+package com.whxy.campusbooktrade2.config;
+
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class MyBatisPlusConfig {
+    /**
+     * 配置分页插件
+     */
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor()); // 分页插件
+        return interceptor;
+    }
+}
+```
+
+## 四、关键适配说明
+1. **接口参数适配**：前端传递的 `page/name/category` 与 Service 层 `pageList` 方法参数完全匹配；
+2. **权限控制**：Service 层已实现「普通用户仅能操作自己的商品，管理员可操作所有商品」，Controller/前端无需额外处理；
+3. **字段适配**：新增 `category` 字段在发布、编辑、列表展示中全链路打通；
+4. **分页数据处理**：适配 MyBatis-Plus 的 `IPage` 分页对象，前端正确渲染总条数、总页数、当前页。
+
+## 五、总结
+| 改造点                | 核心内容                                                                 |
+|-----------------------|--------------------------------------------------------------------------|
+| BookController        | 适配 Service 层 `pageList` 方法，补充分类/搜索/分页接口，组装发布者名称    |
+| 前端 HTML             | 新增分类筛选、关键词搜索、分页控件，适配新接口参数和返回格式              |
+| 配置类                | 补充 MyBatis-Plus 分页插件，确保分页功能生效                              |
+| 权限逻辑              | 完全复用 Service 层的权限控制，无需额外开发                              |
+
+替换以上文件后，你的系统将完整支持「商品分类筛选、关键词搜索、分页展示」功能，且权限控制逻辑完全生效！

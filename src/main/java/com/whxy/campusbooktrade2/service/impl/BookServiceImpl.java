@@ -9,6 +9,7 @@ import com.whxy.campusbooktrade2.entity.Book;
 import com.whxy.campusbooktrade2.mapper.BookMapper;
 import com.whxy.campusbooktrade2.service.BookService;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -49,8 +50,15 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
     public IPage<Book> pageList(int page, int size, String category, String name) {
         LambdaQueryWrapper<Book> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Book::getStatus, 1);
-        if (category != null) wrapper.eq(Book::getCategory, category);
-        if (name != null) wrapper.like(Book::getName, name);
+
+        // 修复：增加非空+非空字符串判断
+        if (StringUtils.hasText(category)) {
+            wrapper.eq(Book::getCategory, category);
+        }
+        if (StringUtils.hasText(name)) {
+            wrapper.like(Book::getName, name);
+        }
+
         return page(new Page<>(page, size), wrapper);
     }
 
@@ -59,6 +67,9 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
         // 普通用户仅能修改自己的商品，管理员可修改任意商品
         if (!"admin".equals(getCurrentRole())) {
             Book oldBook = getById(book.getId());
+            if (oldBook == null) {
+                return R.fail("商品不存在");
+            }
             if (!oldBook.getUserId().equals(getCurrentUserId())) {
                 return R.fail("权限不足！仅能修改自己发布的商品");
             }
