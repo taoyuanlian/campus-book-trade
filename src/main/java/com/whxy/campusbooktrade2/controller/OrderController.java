@@ -3,13 +3,14 @@ package com.whxy.campusbooktrade2.controller;
 import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.entity.OrderInfo;
 import com.whxy.campusbooktrade2.service.OrderService;
+import com.whxy.campusbooktrade2.vo.OrderVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 /**
- * 订单Controller，和UserController结构一致
- * 注：查询类接口用GET（符合RESTful规范），提交类接口用POST
+ * 订单Controller，调整返回值为OrderVo列表
  */
 @RestController
 @RequestMapping("/order")
@@ -27,10 +28,10 @@ public class OrderController {
     }
 
     /**
-     * 查询我的订单 - GET（查询接口用GET是规范，JWT拦截已放行/order/**）
+     * 查询我的订单 - GET（返回包含书名的OrderVo列表）
      */
     @GetMapping("/my/{userId}")
-    public R<List<OrderInfo>> getMyOrders(@PathVariable Long userId) {
+    public R<List<OrderVo>> getMyOrders(@PathVariable Long userId) {
         return orderService.getMyOrders(userId);
     }
 }

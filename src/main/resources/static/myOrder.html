@@ -32,9 +32,10 @@
                 <tr>
                     <th>订单编号</th>
                     <th>书籍ID</th>
+                    <th>书名</th> <!-- 新增：书名表头 -->
                     <th>订单金额</th>
                     <th>下单时间</th>
-                    <th>订单状态</th>
+                    <th>订单状态</th> <!-- 注意：列数从5列→6列，colspan要对应改 -->
                 </tr>
                 </thead>
                 <tbody id="orderList">
@@ -85,21 +86,23 @@
                 let orderList = res.data || [];
                 if (Array.isArray(orderList)) {
                     if (orderList.length === 0) {
-                        html = '<tr><td colspan="5" class="text-center">暂无订单数据</td></tr>';
+                        // 注意：colspan从5→6（对应新增的书名列）
+                        html = '<tr><td colspan="6" class="text-center">暂无订单数据</td></tr>';
                     } else {
                         orderList.forEach(function (item) {
-                            // 适配你的订单状态：1-待支付 2-已支付 3-已取消
+                            // 适配你的订单状态：0-待付款 1-已付款 2-已完成（和数据库一致）
                             let statusText = "";
-                            if (item.status === 1) statusText = "<span class='label label-warning'>待支付</span>";
-                            if (item.status === 2) statusText = "<span class='label label-success'>已支付</span>";
-                            if (item.status === 3) statusText = "<span class='label label-danger'>已取消</span>";
+                            if (item.status === 0) statusText = "<span class='label label-warning'>待支付</span>";
+                            if (item.status === 1) statusText = "<span class='label label-success'>已支付</span>";
+                            if (item.status === 2) statusText = "<span class='label label-danger'>已取消</span>";
 
                             // 格式化时间（后端返回的Date类型转成可读格式）
                             let createTime = item.createTime ? new Date(item.createTime).toLocaleString() : "";
 
                             html += `<tr>
-                                        <td>${item.orderNo || ""}</td> <!-- 后端生成的订单编号 -->
+                                        <td>${item.orderNo || ""}</td> <!-- 订单编号 -->
                                         <td>${item.bookId || ""}</td> <!-- 书籍ID -->
+                                        <td>${item.bookName || "未知书名"}</td> <!-- 新增：显示书名 -->
                                         <td>¥${item.price || 0}</td> <!-- 订单金额 -->
                                         <td>${createTime}</td> <!-- 下单时间 -->
                                         <td>${statusText}</td> <!-- 订单状态 -->
@@ -107,7 +110,8 @@
                         });
                     }
                 } else {
-                    html = '<tr><td colspan="5" class="text-center text-danger">订单数据加载失败</td></tr>';
+                    // 注意：colspan从5→6
+                    html = '<tr><td colspan="6" class="text-center text-danger">订单数据加载失败</td></tr>';
                 }
                 $('#orderList').html(html);
             },
@@ -118,7 +122,8 @@
                     window.location.href = "login.html";
                 } else {
                     alert("订单加载失败：" + err.statusText);
-                    $('#orderList').html('<tr><td colspan="5" class="text-center text-danger">加载失败，请刷新</td></tr>');
+                    // 注意：colspan从5→6
+                    $('#orderList').html('<tr><td colspan="6" class="text-center text-danger">加载失败，请刷新</td></tr>');
                 }
             }
         });

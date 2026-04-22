@@ -6,13 +6,15 @@ import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.entity.OrderInfo;
 import com.whxy.campusbooktrade2.mapper.OrderMapper;
 import com.whxy.campusbooktrade2.service.OrderService;
+import com.whxy.campusbooktrade2.vo.OrderVo;
 import org.springframework.stereotype.Service;
+
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
 /**
- * 订单Service实现类，和UserServiceImpl结构一致
+ * 订单Service实现类，修改查询逻辑为联表查询
  */
 @Service
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, OrderInfo> implements OrderService {
@@ -45,17 +47,12 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, OrderInfo> implem
     }
 
     /**
-     * 查询我的订单（根据用户ID筛选）
+     * 查询我的订单（联表查询，返回包含书名的OrderVo）
      */
     @Override
-    public R<List<OrderInfo>> getMyOrders(Long userId) {
-        // 构造查询条件：只查当前用户的订单
-        LambdaQueryWrapper<OrderInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OrderInfo::getUserId, userId);
-        wrapper.orderByDesc(OrderInfo::getCreateTime); // 按创建时间倒序
-
-        // 查询订单列表
-        List<OrderInfo> orderList = list(wrapper);
+    public R<List<OrderVo>> getMyOrders(Long userId) {
+        // 调用自定义联表查询方法
+        List<OrderVo> orderList = baseMapper.selectMyOrdersWithBookName(userId);
         return R.ok(orderList);
     }
 }
