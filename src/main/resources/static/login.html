@@ -38,18 +38,21 @@
         $('#loginForm').submit(function (e) {
             e.preventDefault();
 
-            // 组装 JSON 格式数据（必须这样写）
+            // 🔥 核心修复：登录前清空所有旧的登录信息（新增这1行！）
+            localStorage.clear();
+
+            // 组装 JSON 格式数据（原有逻辑不变）
             let loginData = {
                 username: $("input[name='username']").val(),
                 password: $("input[name='password']").val()
             };
 
-            // 发送 JSON 请求，不再用 serialize()
+            // 发送 JSON 请求（原有逻辑不变）
             $.ajax({
                 url: "/user/login",
                 type: "POST",
-                contentType: "application/json",  // 关键：声明发送 JSON
-                data: JSON.stringify(loginData),   // 关键：转 JSON 字符串
+                contentType: "application/json",
+                data: JSON.stringify(loginData),
                 success: function (res) {
                     if (res.code === 200) {
                         localStorage.setItem("token", res.data.token);

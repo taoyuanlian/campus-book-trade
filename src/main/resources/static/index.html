@@ -218,7 +218,7 @@
                 headers: utils.getAjaxHeader(),
                 data: JSON.stringify(bookData),
                 success: function (res) {
-                    if (res.code === 0) { // 统一使用后端0作为成功码
+                    if (res.code === 200) { // 统一使用后端0作为成功码
                         alert("发布成功！");
                         loadBooks();
                         $('#bookForm')[0].reset();
@@ -251,7 +251,7 @@
                 headers: utils.getAjaxHeader(),
                 data: JSON.stringify(bookData),
                 success: function (res) {
-                    if (res.code === 0) {
+                    if (res.code === 200) {
                         alert("修改成功！");
                         $('#editBookModal').modal('hide');
                         loadBooks();
@@ -376,7 +376,7 @@
                 type: 'DELETE',
                 headers: utils.getAjaxHeader(),
                 success: function (res) {
-                    if (res.code === 0) {
+                    if (res.code === 200) {
                         alert("删除成功！");
                         loadBooks();
                     } else {
