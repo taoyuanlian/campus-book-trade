@@ -8,30 +8,43 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
     <style>
         .form-inline .form-group { margin-right: 10px; }
-        /* 分页整体居中+上下间距 */
+        /* 强制分页居中，完美适配Bootstrap3 */
+        .text-center nav {
+            display: inline-block !important;
+        }
+        /* 清除分页li自带小黑点（元凶就是这个！） */
+        .pagination li {
+            list-style: none !important;
+        }
+        /* 分页整体上下间距 */
         .pagination {
             margin: 20px 0 !important;
         }
-        /* 分页按钮美化 */
-        .pagination > li > a {
-            color: #337ab7;
-            border-radius: 6px;
-            margin: 0 3px;
+        /* 按钮之间拉开舒适间距 */
+        .pagination > li {
+            margin: 0 5px;
         }
-        /* 当前页码高亮 */
+        /* 分页按钮圆角美化 */
+        .pagination > li > a {
+            border-radius: 4px;
+            min-width: 36px;
+            text-align: center;
+            padding: 6px 12px;
+        }
+        /* 当前选中页码高亮蓝色 */
         .pagination > li.active > a {
             background-color: #337ab7;
             border-color: #337ab7;
-            border-radius: 6px;
+            color: #fff !important;
         }
-        /* 底部页码信息 */
+        /* 底部数据文字样式 */
         .page-info {
-            margin-top: 5px;
+            margin-top: 10px;
             color: #666;
             font-size: 14px;
         }
         .search-panel { margin-bottom: 20px; }
-        .table { margin-bottom: 25px; }
+        .table { margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -457,9 +470,18 @@
         $("#totalPage").text(totalPage);
         $("#currentPage").text(currentPage);
 
+        // 单页隐藏箭头，解决难看问题
+        if(totalPage <= 1){
+            $("#prevPage").hide();
+            $("#nextPage").hide();
+        } else {
+            $("#prevPage").show();
+            $("#nextPage").show();
+        }
+
         let pageHtml = "";
-        const startPage = Math.max(1, currentPage - 3);
-        const endPage = Math.min(totalPage, currentPage + 3);
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPage, currentPage + 2);
 
         for (let i = startPage; i <= endPage; i++) {
             if (i === currentPage) {
