@@ -22,6 +22,13 @@
 </nav>
 
 <div class="container" style="margin-top: 20px;">
+    <!-- 🔥 新增筛选按钮，方便管理员区分状态 -->
+    <div class="form-group" style="margin-bottom:10px;">
+        <button class="btn btn-default" onclick="loadAllBooks()">全部商品</button>
+        <button class="btn btn-success" onclick="loadBooksByStatus(1)">仅看在售</button>
+        <button class="btn btn-danger" onclick="loadBooksByStatus(0)">仅看已售出</button>
+    </div>
+
     <div class="panel panel-default">
         <div class="panel-heading">所有商品列表（管理员专属）</div>
         <div class="panel-body">
@@ -31,7 +38,8 @@
                     <th>ID</th>
                     <th>书名</th>
                     <th>作者</th>
-                    <th>发布者用户名</th> <!-- 🔥 改：ID→用户名 -->
+                    <th>发布者用户名</th>
+                    <th>商品状态</th> <!-- 🔥 新增状态列，直观区分 -->
                     <th>操作</th>
                 </tr>
                 </thead>
@@ -43,23 +51,18 @@
 </div>
 
 <script>
-    // 全局变量
     let token = localStorage.getItem("token");
     let role = localStorage.getItem("role");
 
-    // 统一工具函数
     const utils = {
-        // 错误提示+跳转
         showErrorAndRedirect: function(msg, targetUrl) {
             alert(msg);
             window.location.href = targetUrl;
         },
-        // 清空登录状态
         clearLogin: function() {
             localStorage.clear();
             window.location.href = "login.html";
         },
-        // 解析Token获取role
         parseTokenRole: function() {
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
@@ -73,36 +76,37 @@
         }
     };
 
-    // 页面初始化
     $(function () {
-        // 1. 登录态校验
         if (!token) {
             utils.showErrorAndRedirect("请先登录管理员账号！", "login.html");
             return;
         }
-
-        // 2. 解析role（兼容缓存丢失）
         if (!role) {
             const parsedRole = utils.parseTokenRole();
             if (!parsedRole) return;
         }
-
-        // 3. 管理员权限校验
         if (role !== "admin") {
             utils.showErrorAndRedirect("权限不足！仅管理员可访问此页面", "index.html");
             return;
         }
 
-        // 4. 加载商品列表
         loadAllBooks();
-
-        // 5. 退出登录
         $("#logoutBtn").click(utils.clearLogin);
     });
 
-    // 加载所有商品
+    // 加载所有商品（默认）
     function loadAllBooks() {
-        $("#adminBookList").html('<tr><td colspan="5" class="text-center">加载中...</td></tr>');
+        renderBooks(null);
+    }
+
+    // 按状态筛选商品（1=在售，0=已售出）
+    function loadBooksByStatus(status) {
+        renderBooks(status);
+    }
+
+    // 核心渲染函数（复用逻辑）
+    function renderBooks(filterStatus) {
+        $("#adminBookList").html('<tr><td colspan="6" class="text-center">加载中...</td></tr>');
 
         $.ajax({
             url: "/admin/book/list",
@@ -112,15 +116,28 @@
             success: function (res) {
                 let html = "";
                 if (res.code === 200) {
-                    if (res.data.length === 0) {
-                        html = '<tr><td colspan="5" class="text-center">暂无商品数据</td></tr>';
+                    let bookList = res.data;
+                    // 筛选状态（如果传了筛选条件）
+                    if (filterStatus !== null) {
+                        bookList = bookList.filter(item => item.status === filterStatus);
+                    }
+
+                    if (bookList.length === 0) {
+                        let emptyTip = filterStatus === 1 ? "暂无在售商品" : (filterStatus === 0 ? "暂无已售出商品" : "暂无商品数据");
+                        html = `<tr><td colspan="6" class="text-center">${emptyTip}</td></tr>`;
                     } else {
-                        res.data.forEach(item => {
+                        bookList.forEach(item => {
+                            // 状态文字标色（在售=绿色，已售出=红色）
+                            let statusHtml = item.status === 1 ?
+                                '<span class="text-success">在售</span>' :
+                                '<span class="text-danger">已售出</span>';
+
                             html += `<tr>
                                     <td>${item.id || '-'}</td>
                                     <td>${item.name || '未知书名'}</td>
                                     <td>${item.author || '未知作者'}</td>
-                                    <td>${item.publisherName || '未知用户'}</td> <!-- 🔥 改：显示用户名 -->
+                                    <td>${item.publisherName || '未知用户'}</td>
+                                    <td>${statusHtml}</td>
                                     <td>
                                         <button class="btn btn-xs btn-danger del-btn" data-id="${item.id}">强制删除</button>
                                     </td>
@@ -129,36 +146,21 @@
                     }
                     $("#adminBookList").html(html);
                     // 绑定删除事件
-                    $("#adminBookList").on("click", ".del-btn", function () {
+                    $(".del-btn").click(function () {
                         const id = $(this).attr("data-id");
                         if (confirm("确定强制删除该商品吗？删除后不可恢复！")) {
                             deleteBook(id);
                         }
                     });
                 } else {
-                    html = `<tr><td colspan="5" class="text-center text-danger">${res.msg}</td></tr>`;
+                    html = `<tr><td colspan="6" class="text-center text-danger">${res.msg}</td></tr>`;
                     $("#adminBookList").html(html);
-                    utils.showErrorAndRedirect(res.msg, "index.html");
                 }
             },
             error: function (err) {
-                let errMsg = "";
-                let targetUrl = "login.html";
-                if (err.status === 401) {
-                    errMsg = "Token失效，请重新登录";
-                    localStorage.clear();
-                } else if (err.status === 403) {
-                    errMsg = "您不是管理员，无访问权限";
-                    targetUrl = "index.html";
-                } else if (err.status === 404) {
-                    errMsg = "接口不存在，请联系管理员";
-                    targetUrl = "index.html";
-                } else {
-                    errMsg = "加载失败：" + err.statusText;
-                    targetUrl = "index.html";
-                }
-                $("#adminBookList").html(`<tr><td colspan="5" class="text-center text-danger">${errMsg}</td></tr>`);
-                utils.showErrorAndRedirect(errMsg, targetUrl);
+                let errMsg = err.status === 401 ? "Token失效，请重新登录" : "加载失败：" + err.statusText;
+                $("#adminBookList").html(`<tr><td colspan="6" class="text-center text-danger">${errMsg}</td></tr>`);
+                if (err.status === 401) utils.clearLogin();
             }
         });
     }
@@ -173,25 +175,15 @@
             success: function (res) {
                 if (res.code === 200) {
                     alert("删除成功！");
-                    loadAllBooks();
+                    loadAllBooks(); // 删除后刷新列表
                 } else {
-                    utils.showErrorAndRedirect("删除失败：" + res.msg, "index.html");
+                    alert("删除失败：" + res.msg);
                 }
             },
             error: function (err) {
-                let errMsg = "";
-                let targetUrl = "login.html";
-                if (err.status === 401) {
-                    errMsg = "Token失效，请重新登录";
-                    localStorage.clear();
-                } else if (err.status === 403) {
-                    errMsg = "您不是管理员，无删除权限";
-                    targetUrl = "index.html";
-                } else {
-                    errMsg = "删除失败：" + err.statusText;
-                    targetUrl = "index.html";
-                }
-                utils.showErrorAndRedirect(errMsg, targetUrl);
+                let errMsg = err.status === 401 ? "Token失效，请重新登录" : "删除失败：" + err.statusText;
+                alert(errMsg);
+                if (err.status === 401) utils.clearLogin();
             }
         });
     }

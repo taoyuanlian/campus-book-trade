@@ -53,10 +53,14 @@ public class AdminController {
             map.put("author", book.getAuthor());
             map.put("userId", book.getUserId());
 
-            // 🔥 根据 userId 查询用户名
+            // 🔥 1. 返回发布者用户名（解决显示ID问题）
             User user = userService.getById(book.getUserId());
             String publisherName = user == null ? "未知用户" : user.getUsername();
-            map.put("publisherName", publisherName); // 前端要的就是这个！
+            map.put("publisherName", publisherName);
+
+            // 🔥 2. 返回书籍状态（解决同步问题：0=已售出，1=在售）
+            map.put("status", book.getStatus());
+            map.put("statusText", book.getStatus() == 1 ? "在售" : "已售出");
 
             result.add(map);
         }
