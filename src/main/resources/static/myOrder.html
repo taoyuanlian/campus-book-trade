@@ -90,7 +90,6 @@
                         html = '<tr><td colspan="6" class="text-center">暂无订单数据</td></tr>';
                     } else {
                         orderList.forEach(function (item) {
-                            // 适配你的订单状态：0-待付款 1-已付款 2-已完成（和数据库一致）
                             // 修正后的映射（和后端逻辑对齐）
                             let statusText = "";
                             if (item.status === 1) { // 1=待支付
@@ -105,21 +104,54 @@
                             // 格式化时间（后端返回的Date类型转成可读格式）
                             let createTime = item.createTime ? new Date(item.createTime).toLocaleString() : "";
 
+                            // 拼接订单html，新增「标记为已支付」按钮
                             html += `<tr>
-                                        <td>${item.orderNo || ""}</td> <!-- 订单编号 -->
-                                        <td>${item.bookId || ""}</td> <!-- 书籍ID -->
-                                        <td>${item.bookName || "未知书名"}</td> <!-- 新增：显示书名 -->
-                                        <td>¥${item.price || 0}</td> <!-- 订单金额 -->
-                                        <td>${createTime}</td> <!-- 下单时间 -->
-                                        <td>${statusText}</td> <!-- 订单状态 -->
-                                     </tr>`;
+                                    <td>${item.orderNo || ""}</td>
+                                    <td>${item.bookId || ""}</td>
+                                    <td>${item.bookName || "未知书名"}</td>
+                                    <td>¥${item.price || 0}</td>
+                                    <td>${createTime}</td>
+                                    <td>
+                                        ${statusText}
+                                        <!-- 新增：待支付状态显示「标记为已支付」按钮 -->
+                                        ${item.status === 1 ?
+                                `<button class="btn btn-xs btn-success pay-btn" data-id="${item.id}">标记为已支付</button>` :
+                                ""}
+                                    </td>
+                                 </tr>`;
                         });
                     }
                 } else {
                     // 注意：colspan从5→6
                     html = '<tr><td colspan="6" class="text-center text-danger">订单数据加载失败</td></tr>';
                 }
+
+                // 第一步：先把html渲染到页面
                 $('#orderList').html(html);
+
+                // 第二步：再绑定按钮点击事件（关键！必须在html渲染后）
+                $("#orderList").on("click", ".pay-btn", function() {
+                    const orderId = $(this).attr("data-id");
+                    if (confirm("确认标记该订单为已支付吗？")) {
+                        $.ajax({
+                            url: "/order/updateStatus/" + orderId,
+                            type: "PUT",
+                            headers: { "token": token },
+                            data: { status: 2 }, // 改成已支付
+                            success: function(res) {
+                                if (res.code === 200) {
+                                    alert("标记成功！");
+                                    loadMyOrders(); // 刷新订单列表
+                                } else {
+                                    alert("标记失败：" + res.msg);
+                                }
+                            },
+                            error: function(err) {
+                                alert("操作失败：" + err.statusText);
+                            }
+                        });
+                    }
+                });
             },
             error: function (err) {
                 if (err.status === 401) {

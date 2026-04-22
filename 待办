@@ -1,0 +1,248 @@
+# 📝 订单删除功能 + 登录互斥问题 解决方案
+我帮你一次性解决这两个问题，代码直接复制可用，适配你的期末作业场景：
+
+## 一、问题1：新增「删除订单」功能（分前端+后端）
+### 1. 后端修改（核心：新增删除接口）
+#### 第一步：OrderController 新增删除接口
+```java
+package com.whxy.campusbooktrade2.controller;
+
+import com.whxy.campusbooktrade2.common.R;
+import com.whxy.campusbooktrade2.entity.OrderInfo;
+import com.whxy.campusbooktrade2.service.OrderService;
+import com.whxy.campusbooktrade2.vo.OrderVo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/order")
+public class OrderController {
+
+    @Autowired
+    private OrderService orderService;
+
+    // 原有接口...
+    @PostMapping("/create")
+    public R<String> createOrder(@RequestBody OrderInfo orderInfo) {
+        return orderService.createOrder(orderInfo);
+    }
+
+    @GetMapping("/my/{userId}")
+    public R<List<OrderVo>> getMyOrders(@PathVariable Long userId) {
+        return orderService.getMyOrders(userId);
+    }
+
+    @PutMapping("/updateStatus/{orderId}")
+    public R<String> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam Integer status,
+            @RequestHeader(required = false) String token
+    ) {
+        try {
+            OrderInfo order = orderService.getById(orderId);
+            if (order == null) {
+                return R.fail("订单不存在！");
+            }
+            order.setStatus(status);
+            boolean updateSuccess = orderService.updateById(order);
+            if (updateSuccess) {
+                return R.ok("订单状态修改成功！");
+            } else {
+                return R.fail("订单状态修改失败，请重试！");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.fail("系统异常，修改失败：" + e.getMessage());
+        }
+    }
+
+    // 新增：删除订单接口
+    @DeleteMapping("/delete/{orderId}")
+    public R<String> deleteOrder(
+            @PathVariable Long orderId,
+            @RequestHeader(required = false) String token
+    ) {
+        try {
+            // 1. 校验订单是否存在
+            OrderInfo order = orderService.getById(orderId);
+            if (order == null) {
+                return R.fail("订单不存在，删除失败！");
+            }
+            // 2. 执行删除（物理删除，期末作业简化版）
+            boolean deleteSuccess = orderService.removeById(orderId);
+            if (deleteSuccess) {
+                return R.ok("订单删除成功！");
+            } else {
+                return R.fail("订单删除失败，请重试！");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.fail("系统异常，删除失败：" + e.getMessage());
+        }
+    }
+}
+```
+
+#### 第二步：OrderService 接口无需修改（MyBatis-Plus自带removeById方法）
+
+### 2. 前端修改（myOrder.html 新增删除按钮+逻辑）
+修改`loadMyOrders`里拼接订单的`html`部分，新增删除按钮，并绑定点击事件：
+```js
+// 拼接订单html部分修改（新增删除按钮）
+html += `<tr>
+        <td>${item.orderNo || ""}</td>
+        <td>${item.bookId || ""}</td>
+        <td>${item.bookName || "未知书名"}</td>
+        <td>¥${item.price || 0}</td>
+        <td>${createTime}</td>
+        <td>
+            ${statusText}
+            <!-- 待支付状态显示「标记为已支付」按钮 -->
+            ${item.status === 1 ?
+              `<button class="btn btn-xs btn-success pay-btn" data-id="${item.id}">标记为已支付</button>` :
+              ""}
+            <!-- 新增：删除订单按钮（所有状态都能删） -->
+            <button class="btn btn-xs btn-danger del-btn" data-id="${item.id}">删除</button>
+        </td>
+    </tr>`;
+
+// 在「标记为已支付」事件后，新增删除按钮事件绑定
+$("#orderList").on("click", ".del-btn", function() {
+    const orderId = $(this).attr("data-id");
+    if (confirm("确认删除该订单吗？删除后无法恢复！")) {
+        $.ajax({
+            url: "/order/delete/" + orderId,
+            type: "DELETE",
+            headers: { "token": token },
+            success: function(res) {
+                if (res.code === 200) {
+                    alert("删除成功！");
+                    loadMyOrders(); // 刷新订单列表
+                } else {
+                    alert("删除失败：" + res.msg);
+                }
+            },
+            error: function(err) {
+                alert("操作失败：" + err.statusText);
+            }
+        });
+    }
+});
+```
+
+### 3. 效果说明
+- 每个订单后都会显示红色「删除」按钮；
+- 点击后弹出确认框，确认后调用删除接口；
+- 删除成功后自动刷新订单列表，订单消失。
+
+## 二、问题2：管理员和用户只能登录一个（核心原因+解决方案）
+### 1. 根本原因
+你的登录逻辑中，`localStorage`存储的`token`/`userId`/`username`是**全局的**，登录新用户时没有清空旧的登录信息，或JWT令牌/会话机制限制了单账号登录。
+
+### 2. 解决方案（分2步，彻底解决）
+#### 第一步：登录页（login.html）优化 - 登录前清空旧信息
+```js
+// 登录按钮点击事件里，先清空localStorage再登录
+$("#loginBtn").click(function() {
+    // 1. 清空旧的登录信息（关键！）
+    localStorage.clear();
+
+    // 2. 原有登录逻辑
+    const username = $("#username").val();
+    const password = $("#password").val();
+    if (!username || !password) {
+        alert("请输入用户名和密码！");
+        return;
+    }
+
+    $.ajax({
+        url: "/user/login",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({username, password}),
+        success: function(res) {
+            if (res.code === 200) {
+                // 存储新的登录信息
+                localStorage.setItem("token", res.data.token);
+                localStorage.setItem("userId", res.data.userId);
+                localStorage.setItem("username", res.data.username);
+                localStorage.setItem("role", res.data.role); // 新增：存储角色（user/admin）
+                alert("登录成功！");
+                window.location.href = "index.html";
+            } else {
+                alert("登录失败：" + res.msg);
+            }
+        },
+        error: function(err) {
+            alert("登录请求失败：" + err.statusText);
+        }
+    });
+});
+```
+
+#### 第二步：全局校验优化（index.html/myOrder.html）- 支持角色切换
+在页面加载时，不仅校验登录状态，还确保角色信息正确：
+```js
+// 页面加载校验逻辑修改（以index.html为例）
+$(function () {
+    const token = localStorage.getItem("token");
+    const userId = localStorage.getItem("userId");
+    const role = localStorage.getItem("role");
+
+    if (!token || !userId) {
+        alert("请先登录！");
+        window.location.href = "login.html";
+        return;
+    }
+
+    // 管理员/普通用户页面权限控制（可选，加分项）
+    if (role === "admin") {
+        // 显示管理员专属按钮（比如商品管理）
+        $(".admin-only").show();
+    } else {
+        $(".admin-only").hide();
+    }
+
+    // 原有逻辑...
+});
+```
+
+#### 第三步：后端登录接口优化（UserController）- 返回角色信息
+```java
+// 登录接口返回值新增role字段
+@PostMapping("/login")
+public R<Map<String, Object>> login(@RequestBody User user) {
+    // 原有登录逻辑（校验用户名密码）
+    User dbUser = userService.getOne(new LambdaQueryWrapper<User>().eq(User::getUsername, user.getUsername()));
+    if (dbUser == null || !dbUser.getPassword().equals(user.getPassword())) {
+        return R.fail("用户名或密码错误！");
+    }
+
+    // 构造返回数据（新增role）
+    Map<String, Object> data = new HashMap<>();
+    data.put("token", "token_" + System.currentTimeMillis()); // 简化版token
+    data.put("userId", dbUser.getId());
+    data.put("username", dbUser.getUsername());
+    data.put("role", dbUser.getRole()); // 返回角色（user/admin）
+
+    return R.ok(data);
+}
+```
+
+### 3. 关键说明
+- 登录前清空`localStorage`：确保旧的登录信息被清除，新账号能正常登录；
+- 存储角色信息：方便前端区分管理员/普通用户，显示不同的功能按钮；
+- 该方案是期末作业简化版，无需复杂的JWT刷新/会话管理，满足作业要求即可。
+
+## 总结
+### 1. 订单删除功能
+- 后端新增`DELETE /order/delete/{orderId}`接口；
+- 前端新增删除按钮+点击事件，确认后调用接口并刷新列表。
+
+### 2. 登录互斥问题
+- 核心原因：`localStorage`未清空，导致新旧登录信息冲突；
+- 解决方案：登录前清空`localStorage`，后端返回角色信息，前端按角色展示功能。
+
+这两个功能改完后，你的二手书平台会更完整，期末作业的功能覆盖度和用户体验都会提升！
