@@ -91,11 +91,17 @@
                     } else {
                         orderList.forEach(function (item) {
                             // 适配你的订单状态：0-待付款 1-已付款 2-已完成（和数据库一致）
+                            // 修正后的映射（和后端逻辑对齐）
                             let statusText = "";
-                            if (item.status === 0) statusText = "<span class='label label-warning'>待支付</span>";
-                            if (item.status === 1) statusText = "<span class='label label-success'>已支付</span>";
-                            if (item.status === 2) statusText = "<span class='label label-danger'>已取消</span>";
-
+                            if (item.status === 1) { // 1=待支付
+                                statusText = "<span class='label label-warning'>待支付</span>";
+                            } else if (item.status === 2) { // 2=已支付
+                                statusText = "<span class='label label-success'>已支付</span>";
+                            } else if (item.status === 3) { // 3=已取消
+                                statusText = "<span class='label label-danger'>已取消</span>";
+                            } else { // 兜底（避免显示空白）
+                                statusText = "<span class='label label-default'>未知状态</span>";
+                            }
                             // 格式化时间（后端返回的Date类型转成可读格式）
                             let createTime = item.createTime ? new Date(item.createTime).toLocaleString() : "";
 

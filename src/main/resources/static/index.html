@@ -337,7 +337,8 @@
                 headers: utils.getAjaxHeader(),
                 data: JSON.stringify(orderData),
                 success: function (res) {
-                    if (res.code === 0) {
+                    // 关键修复：成功码改成200（和后端R.java一致）
+                    if (res.code === 200) {
                         alert(res.msg || "下单成功！可前往「我的订单」查看");
                     } else {
                         alert("下单失败：" + res.msg);
@@ -347,7 +348,6 @@
             });
         });
     }
-
     // 编辑功能
     function bindEditEvent() {
         $('.edit-btn').click(function () {
