@@ -4,11 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <title>校园二手书 - 首页</title>
-    <!-- 1. 只保留这一次jQuery引入！顺序绝对不能乱 -->
+    <!-- 引入依赖（仅保留必要的） -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
-    <!-- 2. Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- 3. Bootstrap JS（依赖jQuery，必须最后） -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
 </head>
 <body>
@@ -19,7 +17,6 @@
         </div>
         <ul class="nav navbar-nav navbar-right">
             <li><a href="#" id="userName">欢迎，[未登录]</a></li>
-            <!-- 新增：我的订单入口 -->
             <li><a href="myOrder.html" id="myOrderBtn">我的订单</a></li>
             <!-- 管理员专属入口：普通用户隐藏 -->
             <li id="adminMenu" style="display: none;"><a href="adminBookList.html">管理员商品管理</a></li>
@@ -87,7 +84,7 @@
     </div>
 </div>
 
-<!-- 新增：编辑商品弹窗 -->
+<!-- 编辑商品弹窗 -->
 <div class="modal fade" id="editBookModal" tabindex="-1" role="dialog" aria-labelledby="editBookModalLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -97,7 +94,6 @@
             </div>
             <div class="modal-body">
                 <form id="editBookForm">
-                    <!-- 隐藏存储商品ID -->
                     <input type="hidden" id="editBookId">
                     <div class="form-group">
                         <label>书名</label>
@@ -130,26 +126,74 @@
 </div>
 
 <script>
-    // 全局变量：存储当前登录用户的Token和信息
+    // 全局变量（仅保留核心）
     let token = localStorage.getItem("token");
-    let userId = localStorage.getItem("userId");
-    let username = localStorage.getItem("username");
-    let role = localStorage.getItem("role"); // 新增：用户角色
+    let userInfo = {
+        userId: localStorage.getItem("userId"),
+        username: localStorage.getItem("username"),
+        role: localStorage.getItem("role")
+    };
 
-    // 页面加载时先校验登录态
+    // 统一工具函数（避免重复）
+    const utils = {
+        // 解析Token并更新用户信息
+        parseToken: function() {
+            if (!token) return false;
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                userInfo = {
+                    userId: payload.userId,
+                    username: payload.username || payload.sub,
+                    role: payload.role
+                };
+                // 同步到localStorage
+                localStorage.setItem("userId", userInfo.userId);
+                localStorage.setItem("username", userInfo.username);
+                localStorage.setItem("role", userInfo.role);
+                return true;
+            } catch (e) {
+                alert("Token解析失败，请重新登录！");
+                this.clearLogin();
+                return false;
+            }
+        },
+        // 清空登录状态
+        clearLogin: function() {
+            localStorage.clear();
+            window.location.href = "login.html";
+        },
+        // 统一AJAX请求头
+        getAjaxHeader: function() {
+            return { "token": token };
+        },
+        // 统一处理AJAX错误
+        handleAjaxError: function(err) {
+            if (err.status === 401) {
+                alert("登录已过期，请重新登录！");
+                this.clearLogin();
+            } else {
+                alert(`操作失败：${err.statusText || '网络异常'}`);
+            }
+        }
+    };
+
+    // 页面初始化
     $(function () {
-        // 1. 未登录则强制跳回登录页
+        // 1. 登录态校验
         if (!token) {
             alert("请先登录！");
-            window.location.href = "login.html";
+            utils.clearLogin();
             return;
         }
 
-        // 2. 显示登录用户名
-        $("#userName").text("欢迎，" + (username || "普通用户"));
+        // 2. 解析Token（兼容缓存丢失）
+        if (!userInfo.role) {
+            if (!utils.parseToken()) return;
+        }
 
-        // 3. 判断角色，显示管理员菜单
-        if (role === "admin") {
+        // 3. 渲染用户信息+显示管理员菜单
+        $("#userName").text(`欢迎，${userInfo.username || '普通用户'}`);
+        if (userInfo.role === "admin") {
             $("#adminMenu").show();
         }
 
@@ -159,24 +203,22 @@
         // 5. 发布书籍
         $('#bookForm').submit(function (e) {
             e.preventDefault();
-            let bookData = {
+            const bookData = {
                 name: $("input[name='name']").val(),
                 author: $("input[name='author']").val(),
                 price: $("input[name='price']").val(),
                 oldLevel: $("select[name='oldLevel']").val(),
-                userId: userId
+                userId: userInfo.userId
             };
 
             $.ajax({
                 url: '/book/add',
                 type: 'POST',
                 contentType: 'application/json',
-                headers: {
-                    "token": token
-                },
+                headers: utils.getAjaxHeader(),
                 data: JSON.stringify(bookData),
                 success: function (res) {
-                    if (res.code === 200) {
+                    if (res.code === 0) { // 统一使用后端0作为成功码
                         alert("发布成功！");
                         loadBooks();
                         $('#bookForm')[0].reset();
@@ -184,45 +226,32 @@
                         alert("发布失败：" + res.msg);
                     }
                 },
-                error: function (err) {
-                    if (err.status === 401) {
-                        alert("登录已过期，请重新登录！");
-                        localStorage.clear();
-                        window.location.href = "login.html";
-                    } else {
-                        alert("网络异常：" + err.statusText);
-                    }
-                }
+                error: utils.handleAjaxError
             });
         });
 
         // 6. 退出登录
-        $("#logoutBtn").click(function () {
-            localStorage.clear();
-            window.location.href = "login.html";
-        });
+        $("#logoutBtn").click(utils.clearLogin);
 
         // 7. 保存编辑
         $('#saveEditBtn').click(function () {
-            let bookData = {
+            const bookData = {
                 id: $('#editBookId').val(),
                 name: $('#editName').val(),
                 author: $('#editAuthor').val(),
                 price: $('#editPrice').val(),
                 oldLevel: $('#editOldLevel').val(),
-                userId: userId
+                userId: userInfo.userId
             };
 
             $.ajax({
                 url: '/book/update',
                 type: 'PUT',
                 contentType: 'application/json',
-                headers: {
-                    "token": token
-                },
+                headers: utils.getAjaxHeader(),
                 data: JSON.stringify(bookData),
                 success: function (res) {
-                    if (res.code === 200) {
+                    if (res.code === 0) {
                         alert("修改成功！");
                         $('#editBookModal').modal('hide');
                         loadBooks();
@@ -230,15 +259,7 @@
                         alert("修改失败：" + res.msg);
                     }
                 },
-                error: function (err) {
-                    if (err.status === 401) {
-                        alert("登录已过期，请重新登录！");
-                        localStorage.clear();
-                        window.location.href = "login.html";
-                    } else {
-                        alert("修改失败：" + err.statusText);
-                    }
-                }
+                error: utils.handleAjaxError
             });
         });
     });
@@ -248,12 +269,10 @@
         $.ajax({
             url: '/book/list',
             type: 'GET',
-            headers: {
-                "token": token
-            },
+            headers: utils.getAjaxHeader(),
             success: function (res) {
                 let html = "";
-                let bookList = res.data || [];
+                const bookList = res.data || [];
                 if (Array.isArray(bookList)) {
                     if (bookList.length === 0) {
                         html = '<tr><td colspan="5" class="text-center">暂无书籍数据</td></tr>';
@@ -265,7 +284,10 @@
                                         <td>¥${item.price || 0}</td>
                                         <td>${item.oldLevel || ""}</td>
                                         <td>
-                                            <button class="btn btn-xs btn-primary buy-btn" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}">购买</button>
+                                            <button class="btn btn-xs btn-primary buy-btn"
+                                                    data-id="${item.id}"
+                                                    data-name="${item.name}"
+                                                    data-price="${item.price}">购买</button>
                                             <button class="btn btn-xs btn-warning edit-btn"
                                                     data-id="${item.id}"
                                                     data-name="${item.name}"
@@ -286,7 +308,7 @@
                 bindEditEvent();
                 bindBuyEvent();
             },
-            error: function (err) {
+            error: function(err) {
                 alert("书籍列表加载失败：" + err.statusText);
                 $('#bookList').html('<tr><td colspan="5" class="text-center text-danger">加载失败，请刷新</td></tr>');
             }
@@ -296,15 +318,14 @@
     // 购买功能
     function bindBuyEvent() {
         $('.buy-btn').click(function () {
-            let bookId = $(this).attr('data-id');
-            let bookName = $(this).attr('data-name');
-            let bookPrice = $(this).attr('data-price');
+            const bookId = $(this).attr('data-id');
+            const bookName = $(this).attr('data-name');
+            const bookPrice = $(this).attr('data-price');
 
-            let confirmBuy = confirm(`确定购买《${bookName}》吗？价格：¥${bookPrice}`);
-            if (!confirmBuy) return;
+            if (!confirm(`确定购买《${bookName}》吗？价格：¥${bookPrice}`)) return;
 
-            let orderData = {
-                userId: userId,
+            const orderData = {
+                userId: userInfo.userId,
                 bookId: bookId,
                 price: bookPrice
             };
@@ -313,26 +334,16 @@
                 url: '/order/create',
                 type: 'POST',
                 contentType: 'application/json',
-                headers: {
-                    "token": token
-                },
+                headers: utils.getAjaxHeader(),
                 data: JSON.stringify(orderData),
                 success: function (res) {
-                    if (res.code === 200) {
+                    if (res.code === 0) {
                         alert(res.msg || "下单成功！可前往「我的订单」查看");
                     } else {
                         alert("下单失败：" + res.msg);
                     }
                 },
-                error: function (err) {
-                    if (err.status === 401) {
-                        alert("登录已过期，请重新登录！");
-                        localStorage.clear();
-                        window.location.href = "login.html";
-                    } else {
-                        alert("下单失败：" + err.statusText);
-                    }
-                }
+                error: utils.handleAjaxError
             });
         });
     }
@@ -340,17 +351,12 @@
     // 编辑功能
     function bindEditEvent() {
         $('.edit-btn').click(function () {
-            let bookId = $(this).attr('data-id');
-            let name = $(this).attr('data-name');
-            let author = $(this).attr('data-author');
-            let price = $(this).attr('data-price');
-            let oldLevel = $(this).attr('data-oldlevel');
-
+            const bookId = $(this).attr('data-id');
             $('#editBookId').val(bookId);
-            $('#editName').val(name);
-            $('#editAuthor').val(author);
-            $('#editPrice').val(price);
-            $('#editOldLevel').val(oldLevel);
+            $('#editName').val($(this).attr('data-name'));
+            $('#editAuthor').val($(this).attr('data-author'));
+            $('#editPrice').val($(this).attr('data-price'));
+            $('#editOldLevel').val($(this).attr('data-oldlevel'));
             $('#editBookModal').modal('show');
         });
     }
@@ -359,7 +365,7 @@
     function bindDeleteEvent() {
         $('.delete-btn').click(function () {
             if (!confirm("确定要删除该商品吗？删除后无法恢复！")) return;
-            let bookId = $(this).attr('data-id');
+            const bookId = $(this).attr('data-id');
             if (!bookId) {
                 alert("商品ID为空，删除失败！");
                 return;
@@ -368,26 +374,16 @@
             $.ajax({
                 url: '/book/delete/' + bookId,
                 type: 'DELETE',
-                headers: {
-                    "token": token
-                },
+                headers: utils.getAjaxHeader(),
                 success: function (res) {
-                    if (res.code === 200) {
+                    if (res.code === 0) {
                         alert("删除成功！");
                         loadBooks();
                     } else {
                         alert("删除失败：" + res.msg);
                     }
                 },
-                error: function (err) {
-                    if (err.status === 401) {
-                        alert("登录已过期，请重新登录！");
-                        localStorage.clear();
-                        window.location.href = "login.html";
-                    } else {
-                        alert("删除失败：" + err.statusText);
-                    }
-                }
+                error: utils.handleAjaxError
             });
         });
     }
