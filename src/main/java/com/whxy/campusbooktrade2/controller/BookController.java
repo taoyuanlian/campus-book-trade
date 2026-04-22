@@ -1,5 +1,6 @@
 package com.whxy.campusbooktrade2.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.entity.Book;
 import com.whxy.campusbooktrade2.entity.User;
@@ -20,21 +21,24 @@ public class BookController {
     private BookService bookService;
 
     @Autowired
-    private UserService userService; // 🔥 必须注入，用来查用户名
+    private UserService userService;
 
     @PostMapping("/add")
     public R<String> add(@RequestBody Book book) {
         return bookService.addBook(book);
     }
 
-    // ====================== 🔥 核心修复：返回带 publisherName 的列表 ======================
     @GetMapping("/list")
     public R<List<Map<String, Object>>> list() {
-        // 1. 查询所有书籍
-        List<Book> bookList = bookService.list();
+        // ==============================================
+        // 🔥 🔥 只查 未卖出、状态正常的书（status=1）
+        // ==============================================
+        LambdaQueryWrapper<Book> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Book::getStatus, 1);
 
-        // 2. 封装成带用户名的结构
+        List<Book> bookList = bookService.list(wrapper);
         List<Map<String, Object>> result = new ArrayList<>();
+
         for (Book book : bookList) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", book.getId());
@@ -44,14 +48,12 @@ public class BookController {
             map.put("oldLevel", book.getOldLevel());
             map.put("userId", book.getUserId());
 
-            // 🔥 关键：查出发布者用户名
             User user = userService.getById(book.getUserId());
             String publisherName = (user == null) ? "未知用户" : user.getUsername();
             map.put("publisherName", publisherName);
 
             result.add(map);
         }
-
         return R.ok(result);
     }
 
