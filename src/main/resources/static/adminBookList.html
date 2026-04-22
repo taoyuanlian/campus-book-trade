@@ -31,7 +31,7 @@
                     <th>ID</th>
                     <th>书名</th>
                     <th>作者</th>
-                    <th>发布者ID</th>
+                    <th>发布者用户名</th> <!-- 🔥 改：ID→用户名 -->
                     <th>操作</th>
                 </tr>
                 </thead>
@@ -120,7 +120,7 @@
                                     <td>${item.id || '-'}</td>
                                     <td>${item.name || '未知书名'}</td>
                                     <td>${item.author || '未知作者'}</td>
-                                    <td>${item.userId || '未知用户'}</td>
+                                    <td>${item.publisherName || '未知用户'}</td> <!-- 🔥 改：显示用户名 -->
                                     <td>
                                         <button class="btn btn-xs btn-danger del-btn" data-id="${item.id}">强制删除</button>
                                     </td>

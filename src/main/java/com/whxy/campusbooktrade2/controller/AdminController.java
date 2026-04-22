@@ -9,7 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -21,15 +24,11 @@ public class AdminController {
     @Autowired
     private HttpServletRequest request;
 
-    /**
-     * 权限校验工具方法：判断是否为管理员
-     */
     private boolean isAdmin() {
         String role = (String) request.getAttribute("role");
         return "admin".equals(role);
     }
 
-    // 1. 管理员查看所有用户（需确保UserService继承IService<User>）
     @GetMapping("/user/list")
     public R<List<User>> userList() {
         if (!isAdmin()) {
@@ -38,27 +37,37 @@ public class AdminController {
         return R.ok(userService.list());
     }
 
-    // 2. 管理员查看所有书籍（关键修正：通过BookServiceImpl的MP能力查询）
     @GetMapping("/book/list")
-    public R<List<Book>> bookList() {
+    public R<List<Map<String, Object>>> bookList() {
         if (!isAdmin()) {
             return R.fail("权限不足！仅管理员可查看所有商品");
         }
-        // 核心修正：BookServiceImpl继承了ServiceImpl，可通过注入实现类调用getBaseMapper()
-        // 方式1：直接注入BookServiceImpl（推荐，简单直接）
-        // return R.ok(bookServiceImpl.getBaseMapper().selectList(null));
 
-        // 方式2：若不想注入实现类，在BookService新增listAll()方法（更规范）
-        return R.ok(((com.whxy.campusbooktrade2.service.impl.BookServiceImpl) bookService).getBaseMapper().selectList(null));
+        List<Book> bookList = bookService.list();
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (Book book : bookList) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", book.getId());
+            map.put("name", book.getName());
+            map.put("author", book.getAuthor());
+            map.put("userId", book.getUserId());
+
+            // 🔥 根据 userId 查询用户名
+            User user = userService.getById(book.getUserId());
+            String publisherName = user == null ? "未知用户" : user.getUsername();
+            map.put("publisherName", publisherName); // 前端要的就是这个！
+
+            result.add(map);
+        }
+        return R.ok(result);
     }
 
-    // 3. 管理员强制删除任意商品（复用你已实现的deleteBook方法，自带权限逻辑）
     @DeleteMapping("/book/{id}")
     public R<String> deleteBook(@PathVariable Long id) {
         if (!isAdmin()) {
             return R.fail("权限不足！仅管理员可删除任意商品");
         }
-        // 直接调用BookService的deleteBook方法，复用原有权限+删除逻辑
         return bookService.deleteBook(id);
     }
 }
