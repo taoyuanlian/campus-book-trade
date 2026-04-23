@@ -1,48 +1,228 @@
-<!--// 我的订单页面 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>校园二手书 - 我的订单</title>
-    <!-- 引入依赖 -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #5b6ef7 0%, #4a5fe0 100%);
+            border: none;
+            border-radius: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .navbar-brand, .navbar-nav>li>a {
+            color: #fff !important;
+            font-weight: 500;
+        }
+        .navbar-brand {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .navbar-nav>li>a {
+            transition: all 0.3s ease;
+        }
+        .navbar-nav>li>a:hover {
+            background-color: rgba(255,255,255,0.2) !important;
+            border-radius: 4px;
+        }
+
+        /* 容器 */
+        .container {
+            padding: 20px 15px;
+            max-width: 1200px;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        .btn-success {
+            background: #36d399;
+            border-color: #36d399;
+        }
+        .btn-success:hover {
+            background: #2cb886;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(54, 211, 153, 0.2);
+        }
+        .btn-danger {
+            background: #f87272;
+            border-color: #f87272;
+        }
+        .btn-danger:hover {
+            background: #f65252;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(248, 114, 114, 0.2);
+        }
+        .btn-default {
+            background: #f5f7ff;
+            border-color: #e1e5ee;
+            color: #666;
+        }
+        .btn-default:hover {
+            background: #eef1ff;
+            border-color: #d1d9ee;
+        }
+
+        /* 面板样式 */
+        .panel {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .panel-heading {
+            background: #f5f7ff;
+            border-bottom: 1px solid #eee;
+            padding: 15px 20px;
+            font-weight: bold;
+            color: #4a5fe0;
+        }
+        .panel-body {
+            padding: 0;
+            background: #fff;
+        }
+
+        /* 表格样式 */
+        .table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .table>thead>tr>th {
+            background: #f8f9ff;
+            border: none;
+            border-bottom: 2px solid #e1e5ee;
+            padding: 12px 15px;
+            font-weight: 600;
+            color: #444;
+            text-align: left;
+        }
+        .table>tbody>tr>td {
+            border: none;
+            border-bottom: 1px solid #f0f2f7;
+            padding: 15px;
+            vertical-align: middle;
+        }
+        .table>tbody>tr:hover {
+            background-color: #f8f9ff;
+        }
+        .table>tbody>tr:last-child>td {
+            border-bottom: none;
+        }
+
+        /* 标签样式 */
+        .label {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .label-warning {
+            background-color: #fbbd23;
+        }
+        .label-success {
+            background-color: #36d399;
+        }
+        .label-danger {
+            background-color: #f87272;
+        }
+        .label-default {
+            background-color: #999;
+        }
+
+        /* 小按钮 */
+        .btn-xs {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .table-responsive {
+                margin: 0;
+            }
+            .table>thead>tr>th, .table>tbody>tr>td {
+                padding: 10px;
+                font-size: 13px;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar navbar-default">
     <div class="container">
         <div class="navbar-header">
-            <a class="navbar-brand" href="#">校园二手书平台</a>
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
+                <span class="sr-only">切换导航</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">
+                <i class="fa fa-book"></i> 校园二手书平台
+            </a>
         </div>
-        <ul class="nav navbar-nav navbar-right">
-            <li><a href="#" id="userName">欢迎，[未登录]</a></li>
-            <li><a href="index.html">返回首页</a></li>
-            <li><a href="login.html" id="logoutBtn">退出登录</a></li>
-        </ul>
+        <div class="collapse navbar-collapse" id="navbar-collapse">
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="#" id="userName"><i class="fa fa-user"></i> 欢迎，[未登录]</a></li>
+                <li><a href="index.html"><i class="fa fa-home"></i> 返回首页</a></li>
+                <li><a href="login.html" id="logoutBtn"><i class="fa fa-sign-out"></i> 退出登录</a></li>
+            </ul>
+        </div>
     </div>
 </nav>
 
-<div class="container" style="margin-top: 20px;">
+<div class="container">
     <div class="panel panel-default">
-        <div class="panel-heading">我的订单</div>
+        <div class="panel-heading">
+            <i class="fa fa-shopping-cart"></i> 我的订单
+        </div>
         <div class="panel-body">
-            <table class="table table-striped">
-                <thead>
-                <tr>
-                    <th>订单编号</th>
-                    <th>书籍ID</th>
-                    <th>书名</th> <!-- 新增：书名表头 -->
-                    <th>订单金额</th>
-                    <th>下单时间</th>
-                    <th>订单状态</th> <!-- 注意：列数从5列→6列，colspan要对应改 -->
-                    <th>操作</th> <!-- 新增：操作列（放删除按钮） -->
-                </tr>
-                </thead>
-                <tbody id="orderList">
-                <!-- 订单数据由JS加载 -->
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>订单编号</th>
+                        <th>书籍ID</th>
+                        <th>书名</th>
+                        <th>订单金额</th>
+                        <th>下单时间</th>
+                        <th>订单状态</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="orderList">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -62,7 +242,7 @@
         }
 
         // 显示用户名
-        $("#userName").text("欢迎，" + (username || "普通用户"));
+        $("#userName").text(`<i class="fa fa-user"></i> 欢迎，${username || "普通用户"}`);
 
         // 加载我的订单
         loadMyOrders();
@@ -74,10 +254,12 @@
         });
     });
 
-    // 加载个人订单（适配你的OrderInfo实体类）
+    // 加载个人订单
     function loadMyOrders() {
+        $("#orderList").html('<tr><td colspan="7" class="text-center"><i class="fa fa-spinner fa-spin"></i> 加载中...</td></tr>');
+
         $.ajax({
-            url: '/order/my/' + userId, // 后端获取个人订单接口
+            url: '/order/my/' + userId,
             type: 'GET',
             headers: {
                 "token": token
@@ -87,25 +269,24 @@
                 let orderList = res.data || [];
                 if (Array.isArray(orderList)) {
                     if (orderList.length === 0) {
-                        // 注意：colspan从6→7（新增了操作列）
                         html = '<tr><td colspan="7" class="text-center">暂无订单数据</td></tr>';
                     } else {
                         orderList.forEach(function (item) {
-                            // 修正后的映射（和后端逻辑对齐）
+                            // 状态文字美化
                             let statusText = "";
                             if (item.status === 1) { // 1=待支付
-                                statusText = "<span class='label label-warning'>待支付</span>";
+                                statusText = "<span class='label label-warning'><i class='fa fa-clock-o'></i> 待支付</span>";
                             } else if (item.status === 2) { // 2=已支付
-                                statusText = "<span class='label label-success'>已支付</span>";
+                                statusText = "<span class='label label-success'><i class='fa fa-check'></i> 已支付</span>";
                             } else if (item.status === 3) { // 3=已取消
-                                statusText = "<span class='label label-danger'>已取消</span>";
-                            } else { // 兜底（避免显示空白）
-                                statusText = "<span class='label label-default'>未知状态</span>";
+                                statusText = "<span class='label label-danger'><i class='fa fa-times'></i> 已取消</span>";
+                            } else { // 兜底
+                                statusText = "<span class='label label-default'><i class='fa fa-question'></i> 未知状态</span>";
                             }
-                            // 格式化时间（后端返回的Date类型转成可读格式）
+                            // 格式化时间
                             let createTime = item.createTime ? new Date(item.createTime).toLocaleString() : "";
 
-                            // 拼接订单html，调整列结构 + 新增删除按钮
+                            // 拼接订单html
                             html += `<tr>
                                     <td>${item.orderNo || ""}</td>
                                     <td>${item.bookId || ""}</td>
@@ -116,25 +297,24 @@
                                         ${statusText}
                                         <!-- 待支付状态显示「标记为已支付」按钮 -->
                                         ${item.status === 1 ?
-                                `<button class="btn btn-xs btn-success pay-btn" data-id="${item.id}">标记为已支付</button>` :
+                                `<button class="btn btn-xs btn-success pay-btn" data-id="${item.id}"><i class="fa fa-money"></i> 标记为已支付</button>` :
                                 ""}
                                     </td>
-                                    <!-- 新增：操作列 - 删除按钮 -->
+                                    <!-- 操作列 - 删除按钮 -->
                                     <td>
-                                        <button class="btn btn-xs btn-danger del-btn" data-id="${item.id}">删除订单</button>
+                                        <button class="btn btn-xs btn-danger del-btn" data-id="${item.id}"><i class="fa fa-trash"></i> 删除订单</button>
                                     </td>
                                  </tr>`;
                         });
                     }
                 } else {
-                    // 注意：colspan从6→7
                     html = '<tr><td colspan="7" class="text-center text-danger">订单数据加载失败</td></tr>';
                 }
 
-                // 第一步：先把html渲染到页面
+                // 渲染订单列表
                 $('#orderList').html(html);
 
-                // 第二步：绑定「标记为已支付」按钮事件
+                // 绑定「标记为已支付」按钮事件
                 $("#orderList").on("click", ".pay-btn", function() {
                     const orderId = $(this).attr("data-id");
                     if (confirm("确认标记该订单为已支付吗？")) {
@@ -142,11 +322,11 @@
                             url: "/order/updateStatus/" + orderId,
                             type: "PUT",
                             headers: { "token": token },
-                            data: { status: 2 }, // 改成已支付
+                            data: { status: 2 },
                             success: function(res) {
                                 if (res.code === 200) {
                                     alert("标记成功！");
-                                    loadMyOrders(); // 刷新订单列表
+                                    loadMyOrders();
                                 } else {
                                     alert("标记失败：" + res.msg);
                                 }
@@ -158,19 +338,18 @@
                     }
                 });
 
-                // 第三步：新增「删除订单」按钮事件绑定
+                // 绑定「删除订单」按钮事件
                 $("#orderList").on("click", ".del-btn", function() {
                     const orderId = $(this).attr("data-id");
-                    // 二次确认，防止误删
                     if (confirm("⚠️ 确认删除该订单吗？删除后无法恢复！")) {
                         $.ajax({
-                            url: "/order/delete/" + orderId, // 后端删除接口
-                            type: "DELETE", // RESTful规范：删除用DELETE请求
-                            headers: { "token": token }, // 带登录token
+                            url: "/order/delete/" + orderId,
+                            type: "DELETE",
+                            headers: { "token": token },
                             success: function(res) {
                                 if (res.code === 200) {
                                     alert("订单删除成功！");
-                                    loadMyOrders(); // 刷新列表，立刻看到删除效果
+                                    loadMyOrders();
                                 } else {
                                     alert("删除失败：" + res.msg);
                                 }
@@ -189,7 +368,6 @@
                     window.location.href = "login.html";
                 } else {
                     alert("订单加载失败：" + err.statusText);
-                    // 注意：colspan从6→7
                     $('#orderList').html('<tr><td colspan="7" class="text-center text-danger">加载失败，请刷新</td></tr>');
                 }
             }

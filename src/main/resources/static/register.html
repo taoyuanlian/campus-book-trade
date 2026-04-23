@@ -2,40 +2,175 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>校园二手书 - 注册</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #5b6ef7 0%, #4a5fe0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* 注册卡片 */
+        .register-card {
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        /* 卡片头部 */
+        .card-header {
+            background: #f5f7ff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .card-header h3 {
+            margin: 0;
+            color: #4a5fe0;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .card-header .logo {
+            font-size: 30px;
+            color: #5b6ef7;
+            margin-bottom: 10px;
+        }
+
+        /* 卡片主体 */
+        .card-body {
+            padding: 30px;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 15px 12px 40px;
+            border: 1px solid #e1e5ee;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: #5b6ef7;
+            box-shadow: 0 0 0 3px rgba(91, 110, 247, 0.1);
+            outline: none;
+        }
+
+        /* 输入框图标 */
+        .form-group .fa {
+            position: absolute;
+            left: 15px;
+            top: 38px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        /* 按钮样式 */
+        .btn-register {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #36d399 0%, #2cb886 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(54, 211, 153, 0.2);
+        }
+
+        /* 登录链接 */
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        .login-link a {
+            color: #5b6ef7;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .card-body {
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
-<body style="background-color: #f5f5f5;">
-<div class="container" style="margin-top: 100px;">
-    <div class="row justify-content-center">
-        <div class="col-md-4 col-md-offset-4">
-            <div class="panel panel-default">
-                <div class="panel-heading text-center">
-                    <h3 class="panel-title">用户注册</h3>
-                </div>
-                <div class="panel-body">
-                    <form id="registerForm">
-                        <div class="form-group">
-                            <label>用户名</label>
-                            <input type="text" class="form-control" name="username" placeholder="请输入用户名">
-                        </div>
-                        <div class="form-group">
-                            <label>密码</label>
-                            <input type="password" class="form-control" name="password" placeholder="请输入密码">
-                        </div>
-                        <div class="form-group">
-                            <label>昵称</label>
-                            <input type="text" class="form-control" name="nickname" placeholder="请输入昵称">
-                        </div>
-                        <div class="form-group">
-                            <label>手机号</label>
-                            <input type="text" class="form-control" name="phone" placeholder="请输入手机号">
-                        </div>
-                        <button type="submit" class="btn btn-success btn-block">注册</button>
-                    </form>
-                </div>
-            </div>
+<body>
+<div class="register-card">
+    <div class="card-header">
+        <div class="logo">
+            <i class="fa fa-user-plus"></i>
         </div>
+        <h3>用户注册</h3>
+    </div>
+    <div class="card-body">
+        <form id="registerForm">
+            <div class="form-group">
+                <i class="fa fa-user"></i>
+                <label>用户名</label>
+                <input type="text" class="form-control" name="username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <i class="fa fa-lock"></i>
+                <label>密码</label>
+                <input type="password" class="form-control" name="password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <i class="fa fa-id-card"></i>
+                <label>昵称</label>
+                <input type="text" class="form-control" name="nickname" placeholder="请输入昵称">
+            </div>
+            <div class="form-group">
+                <i class="fa fa-phone"></i>
+                <label>手机号</label>
+                <input type="text" class="form-control" name="phone" placeholder="请输入手机号">
+            </div>
+            <button type="submit" class="btn-register">
+                <i class="fa fa-check"></i> 注册
+            </button>
+            <div class="login-link">
+                已有账号？<a href="login.html">立即登录</a>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -44,14 +179,33 @@
     $(function () {
         $('#registerForm').submit(function (e) {
             e.preventDefault();
-            // 纯POST请求，完全匹配你的后端@PostMapping
+
+            // 简单表单验证
+            let username = $("input[name='username']").val();
+            let password = $("input[name='password']").val();
+            let nickname = $("input[name='nickname']").val();
+
+            if (!username) {
+                alert("请输入用户名！");
+                return;
+            }
+            if (!password) {
+                alert("请输入密码！");
+                return;
+            }
+            if (!nickname) {
+                alert("请输入昵称！");
+                return;
+            }
+
+            // 发送注册请求
             $.post({
                 url: '/user/register',
                 contentType: "application/json",
                 data: JSON.stringify({
-                    username: $("input[name='username']").val(),
-                    password: $("input[name='password']").val(),
-                    nickname: $("input[name='nickname']").val(),
+                    username: username,
+                    password: password,
+                    nickname: nickname,
                     phone: $("input[name='phone']").val()
                 }),
                 success: function (res) {
@@ -61,6 +215,9 @@
                     } else {
                         alert(res.msg);
                     }
+                },
+                error: function(err) {
+                    alert("注册失败：" + err.statusText);
                 }
             });
         });
