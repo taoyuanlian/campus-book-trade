@@ -1,5 +1,4 @@
 package com.whxy.campusbooktrade2.controller;
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.whxy.campusbooktrade2.common.R;
 import com.whxy.campusbooktrade2.entity.User;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
-
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -21,7 +19,6 @@ public class UserController {
     private UserService userService;
     @Autowired
     private JwtUtil jwtUtil;
-
     /**
      * 登录接口（补充role到Token）
      */
@@ -32,10 +29,8 @@ public class UserController {
         if (loginUser == null || !loginUser.getPassword().equals(user.getPassword())) {
             return R.fail("用户名或密码错误");
         }
-
         // 2. 生成含userId和role的Token
         String token = jwtUtil.generateToken(loginUser.getId(), loginUser.getRole());
-
         // 3. 返回Token+用户信息
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);

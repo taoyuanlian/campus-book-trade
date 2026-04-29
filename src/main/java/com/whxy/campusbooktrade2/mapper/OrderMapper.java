@@ -1,5 +1,4 @@
 package com.whxy.campusbooktrade2.mapper;
-
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.whxy.campusbooktrade2.entity.OrderInfo;
 import com.whxy.campusbooktrade2.vo.OrderVo;
@@ -8,13 +7,11 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
-
 /**
  * 订单Mapper，新增联表查询方法
  */
 @Mapper
 public interface OrderMapper extends BaseMapper<OrderInfo> {
-
     /**
      * 联表查询用户订单（包含书名）
      * @param userId 用户ID
