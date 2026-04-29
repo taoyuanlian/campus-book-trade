@@ -890,7 +890,7 @@
                             let isSelf = userInfo.userId == item.userId;
                             let isAdmin = userInfo.role === "admin";
 
-                            let btns = `<button class="btn btn-xs btn-primary buy-btn" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}"><i class="fa fa-shopping-cart"></i> 购买</button>`;
+                            let btns = `<button class="btn btn-xs btn-primary buy-btn" data-id="${item.id}" data-name="${item.name}" data-price="${item.price}"><i class="fa fa-shopping-cart"></i> 下单</button>`;
 
                             // 管理员可以操作所有商品，普通用户只能操作自己的
                             if (isAdmin || isSelf) {
@@ -998,14 +998,14 @@
         loadBooks();
     }
 
-    // 购买事件绑定
+    // 下单事件绑定
     function bindBuyEvent() {
         $('.buy-btn').click(function () {
             const bookId = $(this).attr('data-id');
             const bookName = $(this).attr('data-name');
             const bookPrice = $(this).attr('data-price');
 
-            if (!confirm(`确定购买《${bookName}》吗？价格：¥${bookPrice}`)) return;
+            if (!confirm(`确定下单《${bookName}》吗？价格：¥${bookPrice}`)) return;
 
             const orderData = {
                 userId: userInfo.userId,
